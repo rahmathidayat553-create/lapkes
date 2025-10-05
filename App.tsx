@@ -537,7 +537,6 @@ const ClassManagementPage = () => {
     );
 };
 
-
 const StudentAttendanceInputPage = () => {
     const [selectedClass, setSelectedClass] = useState<number | null>(null);
     const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
@@ -677,6 +676,157 @@ const StudentAttendanceInputPage = () => {
     );
 };
 
+const TeacherManagementPage = () => {
+    const [teachers, setTeachers] = useState<Teacher[]>(initialTeachers);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+    const [currentTeacher, setCurrentTeacher] = useState<Partial<Teacher>>({});
+
+    const openModal = (mode: 'add' | 'edit', teacher: Teacher | null = null) => {
+        setModalMode(mode);
+        setCurrentTeacher(teacher || { name: '', gender: Gender.Male, status: TeacherStatus.NonASN, nip: '' });
+        setIsModalOpen(true);
+    };
+
+    const closeModal = () => {
+        setIsModalOpen(false);
+        setCurrentTeacher({});
+    };
+
+    const handleSave = () => {
+        if (!currentTeacher.name || !currentTeacher.gender || !currentTeacher.status) {
+            alert("Harap isi semua field yang wajib diisi.");
+            return;
+        }
+
+        if (currentTeacher.status === TeacherStatus.ASN && !currentTeacher.nip) {
+            alert("NIP wajib diisi untuk guru ASN.");
+            return;
+        }
+
+        if (modalMode === 'add') {
+            setTeachers([...teachers, { ...currentTeacher, id: Date.now() } as Teacher]);
+        } else {
+            setTeachers(teachers.map(t => t.id === currentTeacher.id ? { ...t, ...currentTeacher } : t));
+        }
+        closeModal();
+    };
+
+    const handleDelete = (id: number) => {
+        if (window.confirm("Apakah Anda yakin ingin menghapus data guru ini?")) {
+            setTeachers(teachers.filter(t => t.id !== id));
+        }
+    };
+    
+    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        const updatedTeacher = { ...currentTeacher, [name]: value };
+
+        if (name === 'status' && value === TeacherStatus.NonASN) {
+            updatedTeacher.nip = '';
+        }
+
+        setCurrentTeacher(updatedTeacher);
+    };
+
+    return (
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Manajemen Data Guru</h2>
+                <button
+                    onClick={() => openModal('add')}
+                    className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 flex items-center space-x-2"
+                >
+                    <Icon>{ICONS.plus}</Icon>
+                    <span>Tambah Guru</span>
+                </button>
+            </div>
+
+            <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-700/50">
+                        <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Jenis Kelamin</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">NIP</th>
+                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {teachers.map((teacher, index) => (
+                            <tr key={teacher.id}>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{teacher.name}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{teacher.gender}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{teacher.status}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{teacher.nip || '-'}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center space-x-2">
+                                    <button onClick={() => openModal('edit', teacher)} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                                        <Icon>{ICONS.pencil}</Icon>
+                                    </button>
+                                    <button onClick={() => handleDelete(teacher.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                                       <Icon>{ICONS.trash}</Icon>
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            {isModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md m-4">
+                        <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-100">
+                            {modalMode === 'add' ? 'Tambah Guru Baru' : 'Edit Data Guru'}
+                        </h3>
+                        <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Lengkap</label>
+                                    <input type="text" name="name" value={currentTeacher.name || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Jenis Kelamin</label>
+                                    <select name="gender" value={currentTeacher.gender || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                        {Object.values(Gender).map(g => (
+                                            <option key={g} value={g}>{g}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                 <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Status Kepegawaian</label>
+                                    <select name="status" value={currentTeacher.status || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                        {Object.values(TeacherStatus).map(s => (
+                                            <option key={s} value={s}>{s}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                {currentTeacher.status === TeacherStatus.ASN && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">NIP (Nomor Induk Pegawai)</label>
+                                        <input type="text" name="nip" value={currentTeacher.nip || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
+                                    </div>
+                                )}
+                            </div>
+                            <div className="mt-6 flex justify-end space-x-3">
+                                <button type="button" onClick={closeModal} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200">
+                                    Batal
+                                </button>
+                                <button type="submit" className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200">
+                                    Simpan
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 // Placeholder for other pages
 function PlaceholderPage({ title }: { title: string }) {
     return (
@@ -708,7 +858,7 @@ const MainApp = () => {
                         <Route path="/" element={<DashboardPage />} />
                         <Route path="/identitas-sekolah" element={<SchoolIdentityPage />} />
                         <Route path="/kalender-pendidikan" element={<PlaceholderPage title="Kalender Pendidikan"/>} />
-                        <Route path="/guru" element={<PlaceholderPage title="Data Guru"/>} />
+                        <Route path="/guru" element={<TeacherManagementPage />} />
                         <Route path="/mapel" element={<PlaceholderPage title="Data Mata Pelajaran"/>} />
                         <Route path="/pengajar-mapel" element={<PlaceholderPage title="Data Pengajar Mapel"/>} />
                         <Route path="/siswa" element={<PlaceholderPage title="Data Siswa"/>} />
