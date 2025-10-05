@@ -1,0 +1,5 @@
+{
+  "name": "LAPKES",
+  "description": "A web application for student and school administration called Laporan Kesiswaan (LAPKES). It manages student data, classes, attendance, teacher data, and school identity.",
+  "requestFramePermissions": []
+}
