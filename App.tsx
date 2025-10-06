@@ -1,7 +1,8 @@
+
 import React, { useState, useCallback, useMemo, createContext, useContext, useEffect } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import type { School, Teacher, Subject, Class, Student, User } from './types';
-import { SchoolLevel, SchoolDays, TeacherStatus, Gender, StudentStatus, TransferReason } from './types';
+import type { School, Teacher, Subject, Class, Student, User, CalendarEvent } from './types';
+import { SchoolLevel, SchoolDays, TeacherStatus, Gender, StudentStatus, TransferReason, CalendarStatus } from './types';
 
 // --- MOCK DATA ---
 const initialSchoolData: School = {
@@ -48,6 +49,14 @@ const initialUsers: User[] = [
     { id: 1, name: 'Rahmat', username: 'admin' },
     { id: 2, name: 'Guru Contoh', username: 'guru' },
 ];
+
+const initialCalendarEvents: CalendarEvent[] = [
+    { id: 1, date: '2024-07-01', title: 'Awal Tahun Ajaran Baru', status: CalendarStatus.Active, description: 'Hari pertama masuk sekolah.' },
+    { id: 2, date: '2024-08-17', title: 'Hari Kemerdekaan RI', status: CalendarStatus.Holiday },
+    { id: 3, date: '2024-09-16', title: 'Penilaian Tengah Semester (PTS)', status: CalendarStatus.Ineffective, description: 'Minggu pelaksanaan PTS ganjil.' },
+    { id: 4, date: '2024-12-25', title: 'Hari Raya Natal', status: CalendarStatus.Holiday },
+];
+
 
 // --- ICONS (Heroicons SVG paths) ---
 const ICONS = {
@@ -401,6 +410,159 @@ const SchoolIdentityPage = () => {
                     </button>
                 </div>
             </form>
+        </div>
+    );
+};
+
+const CalendarManagementPage = () => {
+    const [events, setEvents] = useState<CalendarEvent[]>(initialCalendarEvents);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+    const [currentEvent, setCurrentEvent] = useState<Partial<CalendarEvent>>({});
+
+    const openModal = (mode: 'add' | 'edit', event: CalendarEvent | null = null) => {
+        setModalMode(mode);
+        setCurrentEvent(event || { 
+            date: new Date().toISOString().split('T')[0], 
+            title: '', 
+            status: CalendarStatus.Active,
+            description: '' 
+        });
+        setIsModalOpen(true);
+    };
+
+    const closeModal = () => {
+        setIsModalOpen(false);
+        setCurrentEvent({});
+    };
+
+    const handleSave = () => {
+        if (!currentEvent.date || !currentEvent.title || !currentEvent.status) {
+            alert("Harap isi semua field yang wajib diisi.");
+            return;
+        }
+
+        if (modalMode === 'add') {
+            setEvents([...events, { ...currentEvent, id: Date.now() } as CalendarEvent]);
+        } else {
+            setEvents(events.map(e => e.id === currentEvent.id ? { ...e, ...currentEvent } : e));
+        }
+        closeModal();
+    };
+
+    const handleDelete = (id: number) => {
+        if (window.confirm("Apakah Anda yakin ingin menghapus acara ini?")) {
+            setEvents(events.filter(e => e.id !== id));
+        }
+    };
+    
+    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        setCurrentEvent({ ...currentEvent, [name]: value });
+    };
+
+    const getStatusBadge = (status: CalendarStatus) => {
+        const baseClasses = 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full';
+        switch (status) {
+            case CalendarStatus.Holiday:
+                return `${baseClasses} bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200`;
+            case CalendarStatus.Ineffective:
+                return `${baseClasses} bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200`;
+            case CalendarStatus.Active:
+                return `${baseClasses} bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200`;
+            default:
+                return `${baseClasses} bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-200`;
+        }
+    };
+
+    return (
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Manajemen Kalender Pendidikan</h2>
+                <button
+                    onClick={() => openModal('add')}
+                    className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 flex items-center space-x-2"
+                >
+                    <Icon>{ICONS.plus}</Icon>
+                    <span>Tambah Acara</span>
+                </button>
+            </div>
+
+            <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-700/50">
+                        <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tanggal</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama Acara</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Keterangan</th>
+                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {events.map((event, index) => (
+                            <tr key={event.id}>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{event.date}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{event.title}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                                    <span className={getStatusBadge(event.status)}>{event.status}</span>
+                                </td>
+                                <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-300">{event.description || '-'}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center space-x-2">
+                                    <button onClick={() => openModal('edit', event)} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                                        <Icon>{ICONS.pencil}</Icon>
+                                    </button>
+                                    <button onClick={() => handleDelete(event.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                                       <Icon>{ICONS.trash}</Icon>
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            {isModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md m-4">
+                        <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-100">
+                            {modalMode === 'add' ? 'Tambah Acara Baru' : 'Edit Acara'}
+                        </h3>
+                        <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal</label>
+                                    <input type="date" name="date" value={currentEvent.date || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark]" required />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Acara</label>
+                                    <input type="text" name="title" value={currentEvent.title || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+                                    <select name="status" value={currentEvent.status || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                        {Object.values(CalendarStatus).map(s => (<option key={s} value={s}>{s}</option>))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Keterangan (Opsional)</label>
+                                    <textarea name="description" value={currentEvent.description || ''} onChange={handleFormChange} rows={3} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></textarea>
+                                </div>
+                            </div>
+                            <div className="mt-6 flex justify-end space-x-3">
+                                <button type="button" onClick={closeModal} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200">
+                                    Batal
+                                </button>
+                                <button type="submit" className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200">
+                                    Simpan
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -827,6 +989,186 @@ const TeacherManagementPage = () => {
     );
 };
 
+const StudentManagementPage = () => {
+    const [students, setStudents] = useState<Student[]>(initialStudents);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+    const [currentStudent, setCurrentStudent] = useState<Partial<Student>>({});
+
+    const openModal = (mode: 'add' | 'edit', student: Student | null = null) => {
+        setModalMode(mode);
+        setCurrentStudent(student || { 
+            nisn: '',
+            name: '', 
+            gender: Gender.Male, 
+            status: StudentStatus.New, 
+            entryDate: new Date().toISOString().split('T')[0],
+            classId: initialClasses[0]?.id
+        });
+        setIsModalOpen(true);
+    };
+
+    const closeModal = () => {
+        setIsModalOpen(false);
+        setCurrentStudent({});
+    };
+
+    const handleSave = () => {
+        if (!currentStudent.nisn || !currentStudent.name || !currentStudent.classId || !currentStudent.entryDate) {
+            alert("Harap isi semua field yang wajib diisi.");
+            return;
+        }
+
+        if (modalMode === 'add') {
+            setStudents([...students, { ...currentStudent, id: Date.now() } as Student]);
+        } else {
+            setStudents(students.map(s => s.id === currentStudent.id ? { ...s, ...currentStudent } : s));
+        }
+        closeModal();
+    };
+
+    const handleDelete = (id: number) => {
+        if (window.confirm("Apakah Anda yakin ingin menghapus data siswa ini?")) {
+            setStudents(students.filter(s => s.id !== id));
+        }
+    };
+    
+    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setCurrentStudent({ ...currentStudent, [name]: name === 'classId' ? Number(value) : value });
+    };
+    
+    const getClassName = (classId: number) => {
+        return initialClasses.find(c => c.id === classId)?.name || 'N/A';
+    };
+
+    return (
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Manajemen Data Siswa</h2>
+                <button
+                    onClick={() => openModal('add')}
+                    className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 flex items-center space-x-2"
+                >
+                    <Icon>{ICONS.plus}</Icon>
+                    <span>Tambah Siswa</span>
+                </button>
+            </div>
+
+            <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-700/50">
+                        <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Siswa</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Kelas</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Jenis Kelamin</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tgl Masuk</th>
+                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {students.map((student, index) => (
+                            <tr key={student.id}>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                                    <div className="flex items-center">
+                                        <div className="flex-shrink-0 h-10 w-10">
+                                            <img className="h-10 w-10 rounded-full object-cover" src={student.photo || `https://ui-avatars.com/api/?name=${student.name.replace(/\s/g, '+')}&background=random`} alt={student.name} />
+                                        </div>
+                                        <div className="ml-4">
+                                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{student.name}</div>
+                                            <div className="text-sm text-gray-500 dark:text-gray-400">NISN: {student.nisn}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{getClassName(student.classId)}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{student.gender}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${student.status === StudentStatus.New || student.status === StudentStatus.Transfer ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200'}`}>
+                                        {student.status}
+                                    </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{student.entryDate}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center space-x-2">
+                                    <button onClick={() => openModal('edit', student)} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                                        <Icon>{ICONS.pencil}</Icon>
+                                    </button>
+                                    <button onClick={() => handleDelete(student.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                                       <Icon>{ICONS.trash}</Icon>
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            {isModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg m-4 max-h-[90vh] overflow-y-auto">
+                        <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-100">
+                            {modalMode === 'add' ? 'Tambah Siswa Baru' : 'Edit Data Siswa'}
+                        </h3>
+                        <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">NISN</label>
+                                    <input type="text" name="nisn" value={currentStudent.nisn || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Lengkap</label>
+                                    <input type="text" name="name" value={currentStudent.name || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Jenis Kelamin</label>
+                                    <select name="gender" value={currentStudent.gender || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                        {Object.values(Gender).map(g => (<option key={g} value={g}>{g}</option>))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Kelas</label>
+                                    <select name="classId" value={currentStudent.classId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required>
+                                        {initialClasses.map(c => (<option key={c.id} value={c.id}>{c.name}</option>))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Status Siswa</label>
+                                    <select name="status" value={currentStudent.status || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                        {Object.values(StudentStatus).map(s => (<option key={s} value={s}>{s}</option>))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Masuk</label>
+                                    <input type="date" name="entryDate" value={currentStudent.entryDate || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark]" required />
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">URL Foto (Opsional)</label>
+                                    <input type="text" name="photo" value={currentStudent.photo || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="https://example.com/photo.jpg" />
+
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">No. WhatsApp (Opsional)</label>
+                                    <input type="text" name="whatsapp" value={currentStudent.whatsapp || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="628123456789" />
+                                </div>
+                            </div>
+                            <div className="mt-6 flex justify-end space-x-3">
+                                <button type="button" onClick={closeModal} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200">
+                                    Batal
+                                </button>
+                                <button type="submit" className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200">
+                                    Simpan
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 // Placeholder for other pages
 function PlaceholderPage({ title }: { title: string }) {
     return (
@@ -857,11 +1199,11 @@ const MainApp = () => {
                     <Routes>
                         <Route path="/" element={<DashboardPage />} />
                         <Route path="/identitas-sekolah" element={<SchoolIdentityPage />} />
-                        <Route path="/kalender-pendidikan" element={<PlaceholderPage title="Kalender Pendidikan"/>} />
+                        <Route path="/kalender-pendidikan" element={<CalendarManagementPage />} />
                         <Route path="/guru" element={<TeacherManagementPage />} />
                         <Route path="/mapel" element={<PlaceholderPage title="Data Mata Pelajaran"/>} />
                         <Route path="/pengajar-mapel" element={<PlaceholderPage title="Data Pengajar Mapel"/>} />
-                        <Route path="/siswa" element={<PlaceholderPage title="Data Siswa"/>} />
+                        <Route path="/siswa" element={<StudentManagementPage />} />
                         <Route path="/kelas" element={<ClassManagementPage />} />
                         <Route path="/input-kehadiran" element={<StudentAttendanceInputPage />} />
                         <Route path="/rekap-kehadiran-siswa" element={<PlaceholderPage title="Rekap Kehadiran Siswa"/>} />
