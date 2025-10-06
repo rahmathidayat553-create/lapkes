@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useMemo, createContext, useContext, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, createContext, useContext, useEffect, useRef } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import type { School, Teacher, Subject, Class, Student, User, CalendarEvent } from './types';
 import { SchoolLevel, SchoolDays, TeacherStatus, Gender, StudentStatus, TransferReason, CalendarStatus } from './types';
@@ -994,6 +994,7 @@ const StudentManagementPage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
     const [currentStudent, setCurrentStudent] = useState<Partial<Student>>({});
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const openModal = (mode: 'add' | 'edit', student: Student | null = null) => {
         setModalMode(mode);
@@ -1036,6 +1037,18 @@ const StudentManagementPage = () => {
     const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setCurrentStudent({ ...currentStudent, [name]: name === 'classId' ? Number(value) : value });
+    };
+
+    const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                if (event.target?.result) {
+                    setCurrentStudent(prev => ({ ...prev, photo: event.target.result as string }));
+                }
+            };
+            reader.readAsDataURL(e.target.files[0]);
+        }
     };
     
     const getClassName = (classId: number) => {
@@ -1144,9 +1157,28 @@ const StudentManagementPage = () => {
                                     <input type="date" name="entryDate" value={currentStudent.entryDate || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark]" required />
                                 </div>
                                 <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">URL Foto (Opsional)</label>
-                                    <input type="text" name="photo" value={currentStudent.photo || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="https://example.com/photo.jpg" />
-
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Foto Siswa (Opsional)</label>
+                                    <div className="mt-2 flex items-center space-x-4">
+                                        <img 
+                                            className="h-16 w-16 rounded-full object-cover" 
+                                            src={currentStudent.photo || `https://ui-avatars.com/api/?name=${(currentStudent.name || 'S').replace(/\s/g, '+')}&background=random`} 
+                                            alt="Foto Siswa" 
+                                        />
+                                        <input 
+                                            type="file" 
+                                            accept="image/*" 
+                                            ref={fileInputRef} 
+                                            onChange={handlePhotoChange} 
+                                            className="hidden" 
+                                        />
+                                        <button 
+                                            type="button" 
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="ml-5 bg-white dark:bg-gray-700 py-2 px-3 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                                        >
+                                            Pilih Foto
+                                        </button>
+                                    </div>
                                 </div>
                                 <div className="md:col-span-2">
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">No. WhatsApp (Opsional)</label>
