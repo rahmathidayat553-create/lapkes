@@ -567,6 +567,125 @@ const CalendarManagementPage = () => {
     );
 };
 
+const SubjectManagementPage = () => {
+    const [subjects, setSubjects] = useState<Subject[]>(initialSubjects);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+    const [currentSubject, setCurrentSubject] = useState<Partial<Subject>>({});
+
+    const openModal = (mode: 'add' | 'edit', subject: Subject | null = null) => {
+        setModalMode(mode);
+        setCurrentSubject(subject || { code: '', name: '' });
+        setIsModalOpen(true);
+    };
+
+    const closeModal = () => {
+        setIsModalOpen(false);
+        setCurrentSubject({});
+    };
+
+    const handleSave = () => {
+        if (!currentSubject.code || !currentSubject.name) {
+            alert("Harap isi semua field.");
+            return;
+        }
+
+        if (modalMode === 'add') {
+            setSubjects([...subjects, { ...currentSubject, id: Date.now() } as Subject]);
+        } else {
+            setSubjects(subjects.map(s => s.id === currentSubject.id ? { ...s, ...currentSubject } : s));
+        }
+        closeModal();
+    };
+
+    const handleDelete = (id: number) => {
+        if (window.confirm("Apakah Anda yakin ingin menghapus mata pelajaran ini?")) {
+            setSubjects(subjects.filter(s => s.id !== id));
+        }
+    };
+    
+    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setCurrentSubject({ ...currentSubject, [name]: value });
+    };
+
+    return (
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Manajemen Mata Pelajaran</h2>
+                <button
+                    onClick={() => openModal('add')}
+                    className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 flex items-center space-x-2"
+                >
+                    <Icon>{ICONS.plus}</Icon>
+                    <span>Tambah Mapel</span>
+                </button>
+            </div>
+
+            <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-700/50">
+                        <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Kode Mapel</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama Mapel</th>
+                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {subjects.map((subject, index) => (
+                            <tr key={subject.id}>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{subject.code}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{subject.name}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center space-x-2">
+                                    <button onClick={() => openModal('edit', subject)} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                                        <Icon>{ICONS.pencil}</Icon>
+                                    </button>
+                                    <button onClick={() => handleDelete(subject.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                                       <Icon>{ICONS.trash}</Icon>
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            {isModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md m-4">
+                        <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-100">
+                            {modalMode === 'add' ? 'Tambah Mata Pelajaran' : 'Edit Mata Pelajaran'}
+                        </h3>
+                        <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Kode Mata Pelajaran</label>
+                                    <input type="text" name="code" value={currentSubject.code || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Mata Pelajaran</label>
+                                    <input type="text" name="name" value={currentSubject.name || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
+                                </div>
+                            </div>
+                            <div className="mt-6 flex justify-end space-x-3">
+                                <button type="button" onClick={closeModal} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200">
+                                    Batal
+                                </button>
+                                <button type="submit" className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200">
+                                    Simpan
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+
 const ClassManagementPage = () => {
     const [classes, setClasses] = useState<Class[]>(initialClasses);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -1233,7 +1352,7 @@ const MainApp = () => {
                         <Route path="/identitas-sekolah" element={<SchoolIdentityPage />} />
                         <Route path="/kalender-pendidikan" element={<CalendarManagementPage />} />
                         <Route path="/guru" element={<TeacherManagementPage />} />
-                        <Route path="/mapel" element={<PlaceholderPage title="Data Mata Pelajaran"/>} />
+                        <Route path="/mapel" element={<SubjectManagementPage />} />
                         <Route path="/pengajar-mapel" element={<PlaceholderPage title="Data Pengajar Mapel"/>} />
                         <Route path="/siswa" element={<StudentManagementPage />} />
                         <Route path="/kelas" element={<ClassManagementPage />} />
