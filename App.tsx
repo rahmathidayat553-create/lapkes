@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, createContext, useContext, useEffect, useRef } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import type { School, Teacher, Subject, Class, Student, User, CalendarEvent, StudentTransfer, SubjectTeacher } from './types';
+import type { School, Teacher, Subject, Class, Student, User, CalendarEvent, StudentTransfer, SubjectTeacher, StudentAttendance } from './types';
 import { SchoolLevel, SchoolDays, TeacherStatus, Gender, StudentStatus, TransferReason, CalendarStatus, AttendanceStatus } from './types';
 
 // --- MOCK DATA ---
@@ -67,6 +67,34 @@ const initialCalendarEvents: CalendarEvent[] = [
     { id: 4, date: '2024-12-25', title: 'Hari Raya Natal', status: CalendarStatus.Holiday },
 ];
 
+const getISODate = (dayOffset = 0) => {
+    const date = new Date();
+    date.setDate(date.getDate() + dayOffset);
+    return date.toISOString().split('T')[0];
+};
+
+const initialStudentAttendance: StudentAttendance[] = [
+    // Class 2 (XI TJKT 1) - Today and recent
+    { id: 1, studentId: 2, date: getISODate(-2), meeting: 1, status: AttendanceStatus.Hadir },
+    { id: 2, studentId: 3, date: getISODate(-2), meeting: 1, status: AttendanceStatus.Hadir },
+    { id: 3, studentId: 4, date: getISODate(-2), meeting: 1, status: AttendanceStatus.Sakit },
+    { id: 4, studentId: 2, date: getISODate(-1), meeting: 1, status: AttendanceStatus.Hadir },
+    { id: 5, studentId: 3, date: getISODate(-1), meeting: 1, status: AttendanceStatus.Ijin },
+    { id: 6, studentId: 4, date: getISODate(-1), meeting: 1, status: AttendanceStatus.Hadir },
+    // A few weeks ago
+    { id: 7, studentId: 2, date: getISODate(-14), meeting: 1, status: AttendanceStatus.Hadir },
+    { id: 8, studentId: 3, date: getISODate(-14), meeting: 1, status: AttendanceStatus.Hadir },
+    { id: 9, studentId: 4, date: getISODate(-14), meeting: 1, status: AttendanceStatus.Alpa },
+    // Class 1 (X RPL)
+    { id: 10, studentId: 8, date: getISODate(-8), meeting: 1, status: AttendanceStatus.Hadir },
+    { id: 11, studentId: 8, date: getISODate(-7), meeting: 1, status: AttendanceStatus.Hadir },
+    { id: 12, studentId: 8, date: getISODate(-6), meeting: 1, status: AttendanceStatus.Hadir },
+    { id: 13, studentId: 8, date: getISODate(-5), meeting: 1, status: AttendanceStatus.Hadir },
+    { id: 14, studentId: 8, date: getISODate(-4), meeting: 1, status: AttendanceStatus.Hadir },
+    // Previous month
+    { id: 15, studentId: 2, date: getISODate(-35), meeting: 1, status: AttendanceStatus.Hadir },
+];
+
 
 // --- ICONS (Heroicons SVG paths) ---
 const ICONS = {
@@ -83,6 +111,7 @@ const ICONS = {
   plus: <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />,
   pencil: <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />,
   trash: <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />,
+  download: <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />,
 };
 
 // FIX: Changed prop types to use React.PropsWithChildren to resolve errors about missing 'children' prop.
@@ -1699,6 +1728,168 @@ const StudentTransferPage = ({ students, setStudents, transfers, setTransfers }:
     );
 };
 
+const RekapKehadiranSiswaPage = ({ students, classes, attendanceRecords }: {
+    students: Student[];
+    classes: Class[];
+    attendanceRecords: StudentAttendance[];
+}) => {
+    const today = new Date();
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+    const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+
+    const [startDate, setStartDate] = useState(firstDayOfMonth);
+    const [endDate, setEndDate] = useState(lastDayOfMonth);
+    const [selectedClassId, setSelectedClassId] = useState('all');
+
+    const recapData = useMemo(() => {
+        let filteredStudents = students;
+        if (selectedClassId !== 'all') {
+            filteredStudents = students.filter(s => s.classId === parseInt(selectedClassId));
+        }
+
+        return filteredStudents.map(student => {
+            const studentRecords = attendanceRecords.filter(
+                rec => rec.studentId === student.id && rec.date >= startDate && rec.date <= endDate
+            );
+
+            const summary = {
+                [AttendanceStatus.Hadir]: 0,
+                [AttendanceStatus.Sakit]: 0,
+                [AttendanceStatus.Ijin]: 0,
+                [AttendanceStatus.Alpa]: 0,
+            };
+
+            studentRecords.forEach(rec => {
+                summary[rec.status]++;
+            });
+
+            return {
+                ...student,
+                summary,
+                className: classes.find(c => c.id === student.classId)?.name || 'N/A'
+            };
+        });
+    }, [students, classes, attendanceRecords, startDate, endDate, selectedClassId]);
+
+    const handleExport = () => {
+        const headers = ["No", "NISN", "Nama Siswa", "Kelas", "Hadir", "Sakit", "Izin", "Alpa"];
+        const rows = recapData.map((data, index) => [
+            index + 1,
+            data.nisn,
+            data.name,
+            data.className,
+            data.summary.H,
+            data.summary.S,
+            data.summary.I,
+            data.summary.A,
+        ].join(','));
+
+        const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n');
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `rekap_kehadiran_${startDate}_${endDate}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const setThisWeek = () => {
+        const today = new Date();
+        const dayOfWeek = today.getDay(); // Sunday - 0, Monday - 1
+        const firstDayOfWeek = new Date(today);
+        firstDayOfWeek.setDate(today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1)); // Adjust for Sunday
+        
+        const lastDayOfWeek = new Date(firstDayOfWeek);
+        lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
+
+        setStartDate(firstDayOfWeek.toISOString().split('T')[0]);
+        setEndDate(lastDayOfWeek.toISOString().split('T')[0]);
+    };
+    
+    const setThisMonth = () => {
+        setStartDate(firstDayOfMonth);
+        setEndDate(lastDayOfMonth);
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Mulai</label>
+                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark]" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Selesai</label>
+                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark]" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Kelas</label>
+                        <select value={selectedClassId} onChange={e => setSelectedClassId(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            <option value="all">Semua Kelas</option>
+                            {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                    </div>
+                     <div className="flex space-x-2">
+                        <button onClick={setThisWeek} className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200">Minggu Ini</button>
+                        <button onClick={setThisMonth} className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200">Bulan Ini</button>
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                 <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Hasil Rekapitulasi</h2>
+                    <button
+                        onClick={handleExport}
+                        className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 flex items-center space-x-2"
+                    >
+                        <Icon>{ICONS.download}</Icon>
+                        <span>Export ke Excel</span>
+                    </button>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead className="bg-gray-50 dark:bg-gray-700/50">
+                            <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">NISN</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama Siswa</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Kelas</th>
+                                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Hadir</th>
+                                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Sakit</th>
+                                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Izin</th>
+                                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Alpa</th>
+                            </tr>
+                        </thead>
+                         <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                            {recapData.length > 0 ? recapData.map((data, index) => (
+                                <tr key={data.id}>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{data.nisn}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{data.name}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{data.className}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500 dark:text-gray-300">{data.summary.H}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500 dark:text-gray-300">{data.summary.S}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500 dark:text-gray-300">{data.summary.I}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500 dark:text-gray-300">{data.summary.A}</td>
+                                </tr>
+                            )) : (
+                                <tr>
+                                    <td colSpan={8} className="text-center py-10 text-gray-500 dark:text-gray-400">
+                                        Tidak ada data kehadiran untuk filter yang dipilih.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // Placeholder for other pages
 function PlaceholderPage({ title }: { title: string }) {
     return (
@@ -1730,6 +1921,7 @@ const MainApp = () => {
     const [classes, setClasses] = useState<Class[]>(initialClasses);
     const [transfers, setTransfers] = useState<StudentTransfer[]>(initialStudentTransfers);
     const [subjectTeachers, setSubjectTeachers] = useState<SubjectTeacher[]>(initialSubjectTeachers);
+    const [studentAttendance, setStudentAttendance] = useState<StudentAttendance[]>(initialStudentAttendance);
     
     return (
         <HashRouter>
@@ -1745,7 +1937,7 @@ const MainApp = () => {
                         <Route path="/siswa" element={<StudentManagementPage students={students} setStudents={setStudents} classes={classes} />} />
                         <Route path="/kelas" element={<ClassManagementPage classes={classes} setClasses={setClasses} teachers={teachers} />} />
                         <Route path="/input-kehadiran" element={<StudentAttendanceInputPage students={students} classes={classes} teachers={teachers} subjects={subjects} />} />
-                        <Route path="/rekap-kehadiran-siswa" element={<PlaceholderPage title="Rekap Kehadiran Siswa"/>} />
+                        <Route path="/rekap-kehadiran-siswa" element={<RekapKehadiranSiswaPage students={students} classes={classes} attendanceRecords={studentAttendance} />} />
                         <Route path="/rekap-kehadiran-guru" element={<PlaceholderPage title="Rekap Kehadiran Guru"/>} />
                         <Route path="/mutasi-siswa" element={<StudentTransferPage students={students} setStudents={setStudents} transfers={transfers} setTransfers={setTransfers} />} />
                         <Route path="/manajemen-pengguna" element={<PlaceholderPage title="Manajemen Pengguna"/>} />
