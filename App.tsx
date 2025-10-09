@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, createContext, useContext, useEffect, useRef } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import type { School, Teacher, Subject, Class, Student, User, CalendarEvent, StudentTransfer, SubjectTeacher, StudentAttendance } from './types';
+import type { School, Teacher, Subject, Class, Student, User, CalendarEvent, StudentTransfer, SubjectTeacher, StudentAttendance, TeacherAttendance } from './types';
 import { SchoolLevel, SchoolDays, TeacherStatus, Gender, StudentStatus, TransferReason, CalendarStatus, AttendanceStatus } from './types';
 
 // --- MOCK DATA ---
@@ -93,6 +93,23 @@ const initialStudentAttendance: StudentAttendance[] = [
     { id: 14, studentId: 8, date: getISODate(-4), meeting: 1, status: AttendanceStatus.Hadir },
     // Previous month
     { id: 15, studentId: 2, date: getISODate(-35), meeting: 1, status: AttendanceStatus.Hadir },
+];
+
+const initialTeacherAttendance: TeacherAttendance[] = [
+    // Teacher 1 (Budi) - Teaches Math in both classes (8 meetings/week)
+    { id: 1, teacherId: 1, subjectId: 1, classId: 1, date: getISODate(-8), meetings: 4 }, // a week ago
+    { id: 2, teacherId: 1, subjectId: 1, classId: 2, date: getISODate(-8), meetings: 4 },
+    { id: 3, teacherId: 1, subjectId: 1, classId: 1, date: getISODate(-1), meetings: 4 }, // this week
+    { id: 4, teacherId: 1, subjectId: 1, classId: 2, date: getISODate(-1), meetings: 3 }, // Missed 1 meeting this week
+
+    // Teacher 2 (Citra) - Teaches Physics (3 meetings/week)
+    { id: 5, teacherId: 2, subjectId: 2, classId: 1, date: getISODate(-9), meetings: 3 },
+    { id: 6, teacherId: 2, subjectId: 2, classId: 1, date: getISODate(-2), meetings: 3 },
+
+    // Teacher 3 (Agus) - Teaches Biology (3 meetings/week)
+    { id: 7, teacherId: 3, subjectId: 3, classId: 2, date: getISODate(-15), meetings: 3 }, // 2 weeks ago
+    // Agus was absent last week
+    { id: 8, teacherId: 3, subjectId: 3, classId: 2, date: getISODate(0), meetings: 3 }, // present today
 ];
 
 
@@ -1023,14 +1040,14 @@ const ClassManagementPage = ({ classes, setClasses, teachers }: { classes: Class
 };
 
 const StudentAttendanceInputPage = ({ students, classes, teachers, subjects }: { students: Student[], classes: Class[], teachers: Teacher[], subjects: Subject[] }) => {
-    const [selectedClass, setSelectedClass] = useState<number | null>(null);
-    const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
+    const [selectedClassId, setSelectedClassId] = useState<string>('');
+    const [attendanceDate, setAttendanceDate] = useState('');
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
     const studentsInClass = useMemo(() => {
-        if (!selectedClass) return [];
-        return students.filter(s => s.classId === selectedClass && s.status !== StudentStatus.Inactive);
-    }, [selectedClass, students]);
+        if (!selectedClassId) return [];
+        return students.filter(s => s.classId === parseInt(selectedClassId, 10) && s.status !== StudentStatus.Inactive);
+    }, [selectedClassId, students]);
 
     const initialAttendance = useMemo(() => {
         const att: { [key: number]: string } = {};
@@ -1040,129 +1057,165 @@ const StudentAttendanceInputPage = ({ students, classes, teachers, subjects }: {
         return att;
     }, [studentsInClass]);
 
-    const [attendance, setAttendance] = useState(initialAttendance);
+    const [attendance, setAttendance] = useState<{ [key: number]: string }>({});
     const [attendingTeachersCount, setAttendingTeachersCount] = useState(1);
-    
+
     useEffect(() => {
         setAttendance(initialAttendance);
     }, [initialAttendance]);
 
+    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setAttendanceDate(e.target.value);
+        setSelectedClassId('');
+        setAttendance({});
+    };
+
     const handleClassChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const classId = parseInt(e.target.value, 10);
-        setSelectedClass(classId);
+        setSelectedClassId(e.target.value);
     };
 
     const handleAttendanceChange = (studentId: number, status: string) => {
         setAttendance(prev => ({ ...prev, [studentId]: status }));
     };
 
+    const resetForm = () => {
+        setAttendanceDate('');
+        setSelectedClassId('');
+        setAttendance({});
+        setAttendingTeachersCount(1);
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         console.log({
-            classId: selectedClass,
+            classId: selectedClassId,
             date: attendanceDate,
             studentAttendance: attendance,
-            attendingTeachers: attendingTeachersCount,
         });
         setIsSuccessModalOpen(true);
     };
     
+    const closeSuccessModal = () => {
+        setIsSuccessModalOpen(false);
+        resetForm();
+    };
+
     const formInputClass = "mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white";
+    const selectedClassName = useMemo(() => classes.find(c => c.id === parseInt(selectedClassId, 10))?.name, [selectedClassId, classes]);
 
     return (
         <div className="space-y-6">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                <h3 className="text-lg font-semibold mb-4 dark:text-gray-100">Pilih Kelas dan Tanggal</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Kelas</label>
-                        <select onChange={handleClassChange} defaultValue="" className={formInputClass}>
-                            <option value="" disabled>-- Pilih Kelas --</option>
-                            {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal</label>
-                        <input type="date" value={attendanceDate} onChange={(e) => setAttendanceDate(e.target.value)} className={`${formInputClass} dark:[color-scheme:dark]`} />
+            <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                    <h3 className="text-lg font-semibold mb-4 dark:text-gray-100 flex items-center space-x-3">
+                        <span className="flex items-center justify-center w-8 h-8 bg-primary-600 text-white rounded-full font-bold">1</span>
+                        <span>Pilih Tanggal</span>
+                    </h3>
+                    <div className="max-w-xs">
+                        <label htmlFor="attendanceDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Kehadiran</label>
+                        <input id="attendanceDate" type="date" value={attendanceDate} onChange={handleDateChange} className={`${formInputClass} dark:[color-scheme:dark]`} />
                     </div>
                 </div>
-            </div>
-            {selectedClass && (
-                 <form onSubmit={handleSubmit} className="space-y-6">
+
+                {attendanceDate && (
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                        <h3 className="text-lg font-semibold mb-4 dark:text-gray-100">Input Kehadiran Siswa - {classes.find(c=>c.id === selectedClass)?.name}</h3>
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                                <thead className="bg-gray-50 dark:bg-gray-700/50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama Siswa</th>
-                                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status Kehadiran</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                    {studentsInClass.map((student, index) => (
-                                        <tr key={student.id}>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{student.name}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center">
-                                                <select
-                                                    value={attendance[student.id] || AttendanceStatus.Hadir}
-                                                    onChange={(e) => handleAttendanceChange(student.id, e.target.value)}
-                                                    className="block w-24 mx-auto border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                                >
-                                                    {Object.values(AttendanceStatus).map(status => (
-                                                        <option key={status} value={status}>{status}</option>
-                                                    ))}
-                                                </select>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                        <h3 className="text-lg font-semibold mb-4 dark:text-gray-100 flex items-center space-x-3">
+                            <span className={`flex items-center justify-center w-8 h-8 rounded-full font-bold ${selectedClassId ? 'bg-primary-600 text-white' : 'bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-gray-200'}`}>2</span>
+                            <span>Pilih Kelas</span>
+                        </h3>
+                        <div className="max-w-xs">
+                            <label htmlFor="classSelect" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Kelas</label>
+                            <select id="classSelect" onChange={handleClassChange} value={selectedClassId} className={formInputClass}>
+                                <option value="" disabled>-- Pilih Kelas --</option>
+                                {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
                         </div>
                     </div>
+                )}
 
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                         <h3 className="text-lg font-semibold mb-4 dark:text-gray-100">Input Kehadiran Guru</h3>
-                         <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Jumlah Guru Hadir</label>
-                            <select value={attendingTeachersCount} onChange={(e) => setAttendingTeachersCount(Number(e.target.value))} className={`${formInputClass} w-48`}>
-                                {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
-                            </select>
-                         </div>
-                         <div className="space-y-4">
-                            {Array.from({ length: attendingTeachersCount }).map((_, index) => (
-                                <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border border-gray-200 dark:border-gray-700 rounded-md">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Guru</label>
-                                        <select className={formInputClass}>
-                                            {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                        </select>
+                {selectedClassId && (
+                    <>
+                        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                            <h3 className="text-lg font-semibold mb-4 dark:text-gray-100 flex items-center space-x-3">
+                                <span className="flex items-center justify-center w-8 h-8 bg-primary-600 text-white rounded-full font-bold">3</span>
+                                <span>Input Kehadiran Siswa - {selectedClassName}</span>
+                            </h3>
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                    <thead className="bg-gray-50 dark:bg-gray-700/50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama Siswa</th>
+                                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status Kehadiran</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                        {studentsInClass.map((student, index) => (
+                                            <tr key={student.id}>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{student.name}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center">
+                                                    <select
+                                                        value={attendance[student.id] || AttendanceStatus.Hadir}
+                                                        onChange={(e) => handleAttendanceChange(student.id, e.target.value)}
+                                                        className="block w-24 mx-auto border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                                    >
+                                                        {Object.values(AttendanceStatus).map(status => (
+                                                            <option key={status} value={status}>{status}</option>
+                                                        ))}
+                                                    </select>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                             <h3 className="text-lg font-semibold mb-4 dark:text-gray-100 flex items-center space-x-3">
+                                <span className="flex items-center justify-center w-8 h-8 bg-primary-600 text-white rounded-full font-bold">4</span>
+                                <span>Input Kehadiran Guru</span>
+                            </h3>
+                             <div className="mb-4 max-w-xs">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Jumlah Guru Hadir</label>
+                                <select value={attendingTeachersCount} onChange={(e) => setAttendingTeachersCount(Number(e.target.value))} className={formInputClass}>
+                                    {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
+                                </select>
+                             </div>
+                             <div className="space-y-4">
+                                {Array.from({ length: attendingTeachersCount }).map((_, index) => (
+                                    <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border border-gray-200 dark:border-gray-700 rounded-md">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Guru</label>
+                                            <select className={formInputClass}>
+                                                {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                            </select>
+                                        </div>
+                                         <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Mata Pelajaran</label>
+                                            <select className={formInputClass}>
+                                                {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Jumlah Pertemuan</label>
+                                             <select className={formInputClass}>
+                                                {Array.from({ length: 10 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}</option>)}
+                                            </select>
+                                        </div>
                                     </div>
-                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Mata Pelajaran</label>
-                                        <select className={formInputClass}>
-                                            {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Jumlah Pertemuan</label>
-                                         <select className={formInputClass}>
-                                            {Array.from({ length: 10 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}</option>)}
-                                        </select>
-                                    </div>
-                                </div>
-                            ))}
-                         </div>
-                    </div>
-                     <div className="flex justify-end">
-                        <button type="submit" className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-6 rounded focus:outline-none focus:shadow-outline transition duration-200">
-                            Simpan Kehadiran
-                        </button>
-                    </div>
-                </form>
-            )}
+                                ))}
+                             </div>
+                        </div>
+                         <div className="flex justify-end">
+                            <button type="submit" className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-6 rounded focus:outline-none focus:shadow-outline transition duration-200">
+                                Simpan Kehadiran
+                            </button>
+                        </div>
+                    </>
+                )}
+            </form>
 
             {isSuccessModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
@@ -1181,7 +1234,7 @@ const StudentAttendanceInputPage = ({ students, classes, teachers, subjects }: {
                         <div className="mt-6 flex justify-center">
                             <button 
                                 type="button" 
-                                onClick={() => setIsSuccessModalOpen(false)} 
+                                onClick={closeSuccessModal} 
                                 className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-6 rounded focus:outline-none focus:shadow-outline transition duration-200"
                             >
                                 Tutup
@@ -1193,6 +1246,7 @@ const StudentAttendanceInputPage = ({ students, classes, teachers, subjects }: {
         </div>
     );
 };
+
 
 const TeacherManagementPage = ({ teachers, setTeachers }: { teachers: Teacher[], setTeachers: React.Dispatch<React.SetStateAction<Teacher[]>> }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -1890,6 +1944,252 @@ const RekapKehadiranSiswaPage = ({ students, classes, attendanceRecords }: {
     );
 };
 
+// --- Bar Chart Component ---
+const BarChart = ({ data, title }: { data: { label: string; value: number }[]; title: string }) => {
+    const maxValue = Math.max(...data.map(d => d.value), 100);
+    const chartHeight = 300;
+    const barWidth = 35;
+    const barMargin = 20;
+    const chartWidth = data.length * (barWidth + barMargin);
+
+    const getBarColor = (value: number) => {
+        if (value < 75) return "fill-red-500";
+        if (value < 90) return "fill-yellow-500";
+        return "fill-green-500";
+    };
+
+    return (
+        <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">{title}</h3>
+            {data.length > 0 ? (
+                 <div className="overflow-x-auto">
+                    <svg width={chartWidth} height={chartHeight + 40} className="font-sans">
+                        <g transform="translate(0, 10)">
+                            {data.map((d, i) => {
+                                const barHeight = (d.value / maxValue) * chartHeight;
+                                return (
+                                    <g key={d.label} transform={`translate(${(barWidth + barMargin) * i}, 0)`}>
+                                        <rect
+                                            className={`${getBarColor(d.value)} transition-all duration-300`}
+                                            x="0"
+                                            y={chartHeight - barHeight}
+                                            width={barWidth}
+                                            height={barHeight}
+                                            rx="4"
+                                        />
+                                        <text
+                                            className="text-xs fill-current text-gray-800 dark:text-gray-100 font-bold"
+                                            x={barWidth / 2}
+                                            y={chartHeight - barHeight - 5}
+                                            textAnchor="middle"
+                                        >
+                                            {`${d.value.toFixed(1)}%`}
+                                        </text>
+                                        <text
+                                            className="text-xs fill-current text-gray-500 dark:text-gray-400"
+                                            x={barWidth / 2}
+                                            y={chartHeight + 15}
+                                            textAnchor="middle"
+                                        >
+                                            {d.label}
+                                        </text>
+                                    </g>
+                                );
+                            })}
+                        </g>
+                    </svg>
+                 </div>
+            ) : (
+                <div className="h-[340px] flex items-center justify-center text-gray-500 dark:text-gray-400">
+                    Tidak ada data untuk ditampilkan pada grafik.
+                </div>
+            )}
+        </div>
+    );
+};
+
+
+const RekapKehadiranGuruPage = ({ teachers, subjectTeachers, attendanceRecords }: {
+    teachers: Teacher[];
+    subjectTeachers: SubjectTeacher[];
+    attendanceRecords: TeacherAttendance[];
+}) => {
+    const today = new Date();
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+    const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+
+    const [startDate, setStartDate] = useState(firstDayOfMonth);
+    const [endDate, setEndDate] = useState(lastDayOfMonth);
+    const [selectedTeacherId, setSelectedTeacherId] = useState('all');
+
+    const getWeekdaysInRange = (start: string, end: string) => {
+        let count = 0;
+        const currentDate = new Date(start);
+        const lastDate = new Date(end);
+
+        while (currentDate <= lastDate) {
+            const day = currentDate.getDay();
+            if (day >= 1 && day <= 5) { // Monday to Friday
+                count++;
+            }
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+        return count;
+    };
+
+    const recapData = useMemo(() => {
+        const weekdays = getWeekdaysInRange(startDate, endDate);
+        if (weekdays === 0) return [];
+        
+        let filteredTeachers = teachers;
+        if (selectedTeacherId !== 'all') {
+            filteredTeachers = teachers.filter(t => t.id === parseInt(selectedTeacherId));
+        }
+
+        return filteredTeachers.map(teacher => {
+            const teacherAssignments = subjectTeachers.filter(st => st.teacherId === teacher.id);
+            const weeklyMeetings = teacherAssignments.reduce((sum, current) => sum + current.meetings, 0);
+            const expectedMeetingsPerDay = weeklyMeetings / 5; // Assuming 5-day school week
+            const totalExpectedMeetings = Math.round(expectedMeetingsPerDay * weekdays);
+
+            const attendedRecords = attendanceRecords.filter(
+                rec => rec.teacherId === teacher.id && rec.date >= startDate && rec.date <= endDate
+            );
+            const totalAttendedMeetings = attendedRecords.reduce((sum, current) => sum + current.meetings, 0);
+            
+            const percentage = totalExpectedMeetings > 0 ? (totalAttendedMeetings / totalExpectedMeetings) * 100 : 0;
+
+            return {
+                teacherId: teacher.id,
+                teacherName: teacher.name,
+                expected: totalExpectedMeetings,
+                attended: totalAttendedMeetings,
+                percentage: Math.min(percentage, 100), // Cap at 100%
+            };
+        });
+    }, [teachers, subjectTeachers, attendanceRecords, startDate, endDate, selectedTeacherId]);
+
+    const chartData = useMemo(() => {
+        return recapData.map(d => ({ label: d.teacherName, value: d.percentage }));
+    }, [recapData]);
+
+    const handleExport = () => {
+        const headers = ["No", "Nama Guru", "Pertemuan Seharusnya", "Pertemuan Dihadiri", "Persentase Kehadiran (%)"];
+        const rows = recapData.map((data, index) => [
+            index + 1,
+            data.teacherName,
+            data.expected,
+            data.attended,
+            data.percentage.toFixed(2),
+        ].join(','));
+
+        const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n');
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `rekap_kehadiran_guru_${startDate}_${endDate}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const setThisWeek = () => {
+        const today = new Date();
+        const dayOfWeek = today.getDay();
+        const firstDayOfWeek = new Date(today);
+        firstDayOfWeek.setDate(today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1));
+        
+        const lastDayOfWeek = new Date(firstDayOfWeek);
+        lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 4); // Monday to Friday
+
+        setStartDate(firstDayOfWeek.toISOString().split('T')[0]);
+        setEndDate(lastDayOfWeek.toISOString().split('T')[0]);
+    };
+    
+    const setThisMonth = () => {
+        setStartDate(firstDayOfMonth);
+        setEndDate(lastDayOfMonth);
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Mulai</label>
+                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark]" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Selesai</label>
+                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark]" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Guru</label>
+                        <select value={selectedTeacherId} onChange={e => setSelectedTeacherId(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            <option value="all">Semua Guru</option>
+                            {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </select>
+                    </div>
+                     <div className="flex space-x-2">
+                        <button onClick={setThisWeek} className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200">Minggu Ini</button>
+                        <button onClick={setThisMonth} className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200">Bulan Ini</button>
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                 <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Grafik & Rincian Kehadiran Guru</h2>
+                    <button
+                        onClick={handleExport}
+                        className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 flex items-center space-x-2"
+                    >
+                        <Icon>{ICONS.download}</Icon>
+                        <span>Export ke Excel</span>
+                    </button>
+                </div>
+                <div className="mb-8">
+                     <BarChart data={chartData} title={`Persentase Kehadiran Guru (${startDate} s/d ${endDate})`} />
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead className="bg-gray-50 dark:bg-gray-700/50">
+                            <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama Guru</th>
+                                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Pertemuan Seharusnya</th>
+                                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Pertemuan Dihadiri</th>
+                                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Persentase</th>
+                            </tr>
+                        </thead>
+                         <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                            {recapData.length > 0 ? recapData.map((data, index) => (
+                                <tr key={data.teacherId}>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{data.teacherName}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500 dark:text-gray-300">{data.expected}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500 dark:text-gray-300">{data.attended}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-medium">
+                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${data.percentage >= 90 ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200' : data.percentage >= 75 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200'}`}>
+                                            {data.percentage.toFixed(1)}%
+                                        </span>
+                                    </td>
+                                </tr>
+                            )) : (
+                                <tr>
+                                    <td colSpan={5} className="text-center py-10 text-gray-500 dark:text-gray-400">
+                                        Tidak ada data kehadiran untuk filter yang dipilih.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // Placeholder for other pages
 function PlaceholderPage({ title }: { title: string }) {
     return (
@@ -1922,6 +2222,7 @@ const MainApp = () => {
     const [transfers, setTransfers] = useState<StudentTransfer[]>(initialStudentTransfers);
     const [subjectTeachers, setSubjectTeachers] = useState<SubjectTeacher[]>(initialSubjectTeachers);
     const [studentAttendance, setStudentAttendance] = useState<StudentAttendance[]>(initialStudentAttendance);
+    const [teacherAttendance, setTeacherAttendance] = useState<TeacherAttendance[]>(initialTeacherAttendance);
     
     return (
         <HashRouter>
@@ -1938,7 +2239,7 @@ const MainApp = () => {
                         <Route path="/kelas" element={<ClassManagementPage classes={classes} setClasses={setClasses} teachers={teachers} />} />
                         <Route path="/input-kehadiran" element={<StudentAttendanceInputPage students={students} classes={classes} teachers={teachers} subjects={subjects} />} />
                         <Route path="/rekap-kehadiran-siswa" element={<RekapKehadiranSiswaPage students={students} classes={classes} attendanceRecords={studentAttendance} />} />
-                        <Route path="/rekap-kehadiran-guru" element={<PlaceholderPage title="Rekap Kehadiran Guru"/>} />
+                        <Route path="/rekap-kehadiran-guru" element={<RekapKehadiranGuruPage teachers={teachers} subjectTeachers={subjectTeachers} attendanceRecords={teacherAttendance}/>} />
                         <Route path="/mutasi-siswa" element={<StudentTransferPage students={students} setStudents={setStudents} transfers={transfers} setTransfers={setTransfers} />} />
                         <Route path="/manajemen-pengguna" element={<PlaceholderPage title="Manajemen Pengguna"/>} />
                         <Route path="*" element={<Navigate to="/" />} />
