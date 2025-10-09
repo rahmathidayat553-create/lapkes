@@ -1,8 +1,7 @@
-
 import React, { useState, useCallback, useMemo, createContext, useContext, useEffect, useRef } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import type { School, Teacher, Subject, Class, Student, User, CalendarEvent } from './types';
-import { SchoolLevel, SchoolDays, TeacherStatus, Gender, StudentStatus, TransferReason, CalendarStatus } from './types';
+import type { School, Teacher, Subject, Class, Student, User, CalendarEvent, StudentTransfer, SubjectTeacher } from './types';
+import { SchoolLevel, SchoolDays, TeacherStatus, Gender, StudentStatus, TransferReason, CalendarStatus, AttendanceStatus } from './types';
 
 // --- MOCK DATA ---
 const initialSchoolData: School = {
@@ -34,8 +33,19 @@ const initialClasses: Class[] = [
     { id: 2, code: 'XI-TJKT', name: 'XI TJKT 1', homeroomTeacherId: 2 },
 ];
 
+const initialSubjectTeachers: SubjectTeacher[] = [
+    { id: 1, teacherId: 1, subjectId: 1, classId: 1, meetings: 4 },
+    { id: 2, teacherId: 2, subjectId: 2, classId: 1, meetings: 3 },
+    { id: 3, teacherId: 3, subjectId: 3, classId: 2, meetings: 3 },
+    { id: 4, teacherId: 1, subjectId: 1, classId: 2, meetings: 4 },
+];
+
+const initialStudentTransfers: StudentTransfer[] = [
+    { id: 1, studentId: 1, exitDate: '2024-06-20', reason: TransferReason.Pindah, notes: 'Pindah ke sekolah lain di luar kota.' }
+];
+
 const initialStudents: Student[] = [
-    { id: 1, nisn: '001', name: 'Andi', gender: Gender.Male, status: StudentStatus.New, entryDate: '2023-07-15', classId: 2, photo: 'https://picsum.photos/seed/andi/100' },
+    { id: 1, nisn: '001', name: 'Andi', gender: Gender.Male, status: StudentStatus.Inactive, entryDate: '2023-07-15', exitDate: '2024-06-20', classId: 2, photo: 'https://picsum.photos/seed/andi/100' },
     { id: 2, nisn: '002', name: 'Budi', gender: Gender.Male, status: StudentStatus.New, entryDate: '2023-07-15', classId: 2, photo: 'https://picsum.photos/seed/budi/100' },
     { id: 3, nisn: '003', name: 'Hasan', gender: Gender.Male, status: StudentStatus.New, entryDate: '2023-07-15', classId: 2 },
     { id: 4, nisn: '004', name: 'Nurdi', gender: Gender.Male, status: StudentStatus.New, entryDate: '2023-07-15', classId: 2 },
@@ -75,10 +85,8 @@ const ICONS = {
   trash: <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />,
 };
 
-// Fix: Using a named interface for props to avoid potential parsing issues.
-interface IconProps {
-    children: React.ReactNode;
-}
+// FIX: Changed prop types to use React.PropsWithChildren to resolve errors about missing 'children' prop.
+type IconProps = React.PropsWithChildren<{}>;
 function Icon({ children }: IconProps) {
     return (
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
@@ -93,10 +101,8 @@ const ThemeContext = createContext<{ theme: string; toggleTheme: () => void; }>(
     toggleTheme: () => {},
 });
 
-// Fix: Using a named interface for props to avoid potential parsing issues.
-interface ThemeProviderProps {
-    children: React.ReactNode;
-}
+// FIX: Changed prop types to use React.PropsWithChildren to resolve errors about missing 'children' prop.
+type ThemeProviderProps = React.PropsWithChildren<{}>;
 function ThemeProvider({ children }: ThemeProviderProps) {
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
 
@@ -128,10 +134,8 @@ const AuthContext = createContext<{ isAuthenticated: boolean; login: (user: stri
     logout: () => {},
 });
 
-// Fix: Using a named interface for props to avoid potential parsing issues.
-interface AuthProviderProps {
-    children: React.ReactNode;
-}
+// FIX: Changed prop types to use React.PropsWithChildren to resolve errors about missing 'children' prop.
+type AuthProviderProps = React.PropsWithChildren<{}>;
 function AuthProvider({ children }: AuthProviderProps) {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -298,10 +302,8 @@ const Header = () => {
     );
 };
 
-// Fix: Using a named interface for props to avoid potential parsing issues.
-interface LayoutProps {
-    children: React.ReactNode;
-}
+// FIX: Changed prop types to use React.PropsWithChildren to resolve errors about missing 'children' prop.
+type LayoutProps = React.PropsWithChildren<{}>;
 function Layout({ children }: LayoutProps) {
     return (
         <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
@@ -316,34 +318,38 @@ function Layout({ children }: LayoutProps) {
     );
 }
 
-const DashboardPage = () => (
-    <div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Total Siswa</h3>
-                <p className="text-3xl font-bold text-gray-800 dark:text-gray-100">{initialStudents.length}</p>
+const DashboardPage = ({ students, teachers, classes }: { students: Student[]; teachers: Teacher[]; classes: Class[]; }) => {
+    const activeStudentCount = useMemo(() => students.filter(s => s.status !== StudentStatus.Inactive).length, [students]);
+
+    return (
+        <div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                    <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Total Siswa Aktif</h3>
+                    <p className="text-3xl font-bold text-gray-800 dark:text-gray-100">{activeStudentCount}</p>
+                </div>
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                    <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Total Guru</h3>
+                    <p className="text-3xl font-bold text-gray-800 dark:text-gray-100">{teachers.length}</p>
+                </div>
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                    <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Total Kelas</h3>
+                    <p className="text-3xl font-bold text-gray-800 dark:text-gray-100">{classes.length}</p>
+                </div>
+                 <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                    <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Kehadiran Hari Ini</h3>
+                    <p className="text-3xl font-bold text-gray-800 dark:text-gray-100">95%</p>
+                </div>
             </div>
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Total Guru</h3>
-                <p className="text-3xl font-bold text-gray-800 dark:text-gray-100">{initialTeachers.length}</p>
-            </div>
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Total Kelas</h3>
-                <p className="text-3xl font-bold text-gray-800 dark:text-gray-100">{initialClasses.length}</p>
-            </div>
-             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Kehadiran Hari Ini</h3>
-                <p className="text-3xl font-bold text-gray-800 dark:text-gray-100">95%</p>
+            <div className="mt-8 bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Selamat Datang di Aplikasi LAPKES</h2>
+                <p className="text-gray-600 dark:text-gray-300">
+                    Aplikasi Laporan Kesiswaan (LAPKES) membantu Anda mengelola data sekolah, siswa, guru, dan kehadiran dengan mudah dan efisien. Gunakan menu di sebelah kiri untuk navigasi.
+                </p>
             </div>
         </div>
-        <div className="mt-8 bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-            <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Selamat Datang di Aplikasi LAPKES</h2>
-            <p className="text-gray-600 dark:text-gray-300">
-                Aplikasi Laporan Kesiswaan (LAPKES) membantu Anda mengelola data sekolah, siswa, guru, dan kehadiran dengan mudah dan efisien. Gunakan menu di sebelah kiri untuk navigasi.
-            </p>
-        </div>
-    </div>
-);
+    );
+};
 
 const SchoolIdentityPage = () => {
     const [school, setSchool] = useState(initialSchoolData);
@@ -567,8 +573,7 @@ const CalendarManagementPage = () => {
     );
 };
 
-const SubjectManagementPage = () => {
-    const [subjects, setSubjects] = useState<Subject[]>(initialSubjects);
+const SubjectManagementPage = ({ subjects, setSubjects }: { subjects: Subject[], setSubjects: React.Dispatch<React.SetStateAction<Subject[]>> }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
     const [currentSubject, setCurrentSubject] = useState<Partial<Subject>>({});
@@ -685,16 +690,185 @@ const SubjectManagementPage = () => {
     );
 };
 
+const SubjectTeacherManagementPage = ({
+    assignments,
+    setAssignments,
+    teachers,
+    subjects,
+    classes,
+}: {
+    assignments: SubjectTeacher[];
+    setAssignments: React.Dispatch<React.SetStateAction<SubjectTeacher[]>>;
+    teachers: Teacher[];
+    subjects: Subject[];
+    classes: Class[];
+}) => {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+    const [currentAssignment, setCurrentAssignment] = useState<Partial<SubjectTeacher>>({});
 
-const ClassManagementPage = () => {
-    const [classes, setClasses] = useState<Class[]>(initialClasses);
+    const openModal = (mode: 'add' | 'edit', assignment: SubjectTeacher | null = null) => {
+        setModalMode(mode);
+        setCurrentAssignment(
+            assignment || {
+                teacherId: teachers[0]?.id,
+                subjectId: subjects[0]?.id,
+                classId: classes[0]?.id,
+                meetings: 1,
+            }
+        );
+        setIsModalOpen(true);
+    };
+
+    const closeModal = () => {
+        setIsModalOpen(false);
+        setCurrentAssignment({});
+    };
+
+    const handleSave = () => {
+        if (!currentAssignment.teacherId || !currentAssignment.subjectId || !currentAssignment.classId || !currentAssignment.meetings) {
+            alert('Harap isi semua field.');
+            return;
+        }
+
+        if (modalMode === 'add') {
+            // Check for duplicates
+            const isDuplicate = assignments.some(
+                a => a.teacherId === currentAssignment.teacherId &&
+                     a.subjectId === currentAssignment.subjectId &&
+                     a.classId === currentAssignment.classId
+            );
+            if (isDuplicate) {
+                alert('Penugasan guru untuk mata pelajaran dan kelas ini sudah ada.');
+                return;
+            }
+            setAssignments([...assignments, { ...currentAssignment, id: Date.now() } as SubjectTeacher]);
+        } else {
+            setAssignments(
+                assignments.map(a => (a.id === currentAssignment.id ? { ...a, ...currentAssignment } : a))
+            );
+        }
+        closeModal();
+    };
+
+    const handleDelete = (id: number) => {
+        if (window.confirm('Apakah Anda yakin ingin menghapus data pengajar ini?')) {
+            setAssignments(assignments.filter(a => a.id !== id));
+        }
+    };
+
+    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setCurrentAssignment({ ...currentAssignment, [name]: Number(value) });
+    };
+
+    const getTeacherName = (teacherId: number) => teachers.find(t => t.id === teacherId)?.name || 'N/A';
+    const getSubjectName = (subjectId: number) => subjects.find(s => s.id === subjectId)?.name || 'N/A';
+    const getClassName = (classId: number) => classes.find(c => c.id === classId)?.name || 'N/A';
+
+    return (
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Manajemen Pengajar Mata Pelajaran</h2>
+                <button
+                    onClick={() => openModal('add')}
+                    className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 flex items-center space-x-2"
+                >
+                    <Icon>{ICONS.plus}</Icon>
+                    <span>Tambah Pengajar</span>
+                </button>
+            </div>
+
+            <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-700/50">
+                        <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama Guru</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Mata Pelajaran</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Kelas</th>
+                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Jml Pertemuan/Minggu</th>
+                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {assignments.map((assignment, index) => (
+                            <tr key={assignment.id}>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{getTeacherName(assignment.teacherId)}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{getSubjectName(assignment.subjectId)}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{getClassName(assignment.classId)}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 text-center">{assignment.meetings}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center space-x-2">
+                                    <button onClick={() => openModal('edit', assignment)} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                                        <Icon>{ICONS.pencil}</Icon>
+                                    </button>
+                                    <button onClick={() => handleDelete(assignment.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                                        <Icon>{ICONS.trash}</Icon>
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            {isModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md m-4">
+                        <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-100">
+                            {modalMode === 'add' ? 'Tambah Pengajar Mapel' : 'Edit Pengajar Mapel'}
+                        </h3>
+                        <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Guru</label>
+                                    <select name="teacherId" value={currentAssignment.teacherId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                        {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Mata Pelajaran</label>
+                                    <select name="subjectId" value={currentAssignment.subjectId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                        {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Kelas</label>
+                                    <select name="classId" value={currentAssignment.classId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                        {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Jumlah Pertemuan per Minggu</label>
+                                    <input type="number" name="meetings" min="1" value={currentAssignment.meetings || 1} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                                </div>
+                            </div>
+                            <div className="mt-6 flex justify-end space-x-3">
+                                <button type="button" onClick={closeModal} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200">
+                                    Batal
+                                </button>
+                                <button type="submit" className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200">
+                                    Simpan
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+
+const ClassManagementPage = ({ classes, setClasses, teachers }: { classes: Class[], setClasses: React.Dispatch<React.SetStateAction<Class[]>>, teachers: Teacher[] }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
     const [currentClass, setCurrentClass] = useState<Partial<Class>>({});
 
     const openModal = (mode: 'add' | 'edit', cls: Class | null = null) => {
         setModalMode(mode);
-        setCurrentClass(cls || { code: '', name: '', homeroomTeacherId: initialTeachers[0]?.id });
+        setCurrentClass(cls || { code: '', name: '', homeroomTeacherId: teachers[0]?.id });
         setIsModalOpen(true);
     };
 
@@ -729,7 +903,7 @@ const ClassManagementPage = () => {
     };
 
     const getTeacherName = (teacherId: number) => {
-        return initialTeachers.find(t => t.id === teacherId)?.name || 'N/A';
+        return teachers.find(t => t.id === teacherId)?.name || 'N/A';
     };
 
     return (
@@ -740,7 +914,8 @@ const ClassManagementPage = () => {
                     onClick={() => openModal('add')}
                     className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 flex items-center space-x-2"
                 >
-                    <Icon><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></Icon>
+                    {/* FIX: Replaced hardcoded path with icon constant for consistency */}
+                    <Icon>{ICONS.plus}</Icon>
                     <span>Tambah Kelas</span>
                 </button>
             </div>
@@ -796,7 +971,7 @@ const ClassManagementPage = () => {
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Wali Kelas</label>
                                     <select name="homeroomTeacherId" value={currentClass.homeroomTeacherId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                        {initialTeachers.map(teacher => (
+                                        {teachers.map(teacher => (
                                             <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
                                         ))}
                                     </select>
@@ -818,19 +993,20 @@ const ClassManagementPage = () => {
     );
 };
 
-const StudentAttendanceInputPage = () => {
+const StudentAttendanceInputPage = ({ students, classes, teachers, subjects }: { students: Student[], classes: Class[], teachers: Teacher[], subjects: Subject[] }) => {
     const [selectedClass, setSelectedClass] = useState<number | null>(null);
     const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
-    
+    const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+
     const studentsInClass = useMemo(() => {
         if (!selectedClass) return [];
-        return initialStudents.filter(s => s.classId === selectedClass);
-    }, [selectedClass]);
+        return students.filter(s => s.classId === selectedClass && s.status !== StudentStatus.Inactive);
+    }, [selectedClass, students]);
 
     const initialAttendance = useMemo(() => {
         const att: { [key: number]: string } = {};
         studentsInClass.forEach(student => {
-            att[student.id] = 'H';
+            att[student.id] = AttendanceStatus.Hadir;
         });
         return att;
     }, [studentsInClass]);
@@ -838,6 +1014,10 @@ const StudentAttendanceInputPage = () => {
     const [attendance, setAttendance] = useState(initialAttendance);
     const [attendingTeachersCount, setAttendingTeachersCount] = useState(1);
     
+    useEffect(() => {
+        setAttendance(initialAttendance);
+    }, [initialAttendance]);
+
     const handleClassChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const classId = parseInt(e.target.value, 10);
         setSelectedClass(classId);
@@ -855,7 +1035,7 @@ const StudentAttendanceInputPage = () => {
             studentAttendance: attendance,
             attendingTeachers: attendingTeachersCount,
         });
-        alert('Data kehadiran berhasil disimpan!');
+        setIsSuccessModalOpen(true);
     };
     
     const formInputClass = "mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white";
@@ -867,9 +1047,9 @@ const StudentAttendanceInputPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Kelas</label>
-                        <select onChange={handleClassChange} className={formInputClass}>
-                            <option>-- Pilih Kelas --</option>
-                            {initialClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        <select onChange={handleClassChange} defaultValue="" className={formInputClass}>
+                            <option value="" disabled>-- Pilih Kelas --</option>
+                            {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                     </div>
                     <div>
@@ -881,14 +1061,14 @@ const StudentAttendanceInputPage = () => {
             {selectedClass && (
                  <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                        <h3 className="text-lg font-semibold mb-4 dark:text-gray-100">Input Kehadiran Siswa - {initialClasses.find(c=>c.id === selectedClass)?.name}</h3>
+                        <h3 className="text-lg font-semibold mb-4 dark:text-gray-100">Input Kehadiran Siswa - {classes.find(c=>c.id === selectedClass)?.name}</h3>
                         <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                 <thead className="bg-gray-50 dark:bg-gray-700/50">
                                     <tr>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama Siswa</th>
-                                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Pertemuan 1</th>
+                                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status Kehadiran</th>
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -897,14 +1077,15 @@ const StudentAttendanceInputPage = () => {
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{student.name}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center">
-                                                <div className="flex justify-center space-x-4">
-                                                    {['H', 'S', 'I', 'A'].map(status => (
-                                                        <label key={status} className="flex items-center space-x-1 cursor-pointer">
-                                                            <input type="radio" name={`att-${student.id}`} value={status} checked={attendance[student.id] === status} onChange={() => handleAttendanceChange(student.id, status)} className="h-4 w-4 text-primary-600 border-gray-300 focus:ring-primary-500" />
-                                                            <span className="dark:text-gray-300">{status}</span>
-                                                        </label>
+                                                <select
+                                                    value={attendance[student.id] || AttendanceStatus.Hadir}
+                                                    onChange={(e) => handleAttendanceChange(student.id, e.target.value)}
+                                                    className="block w-24 mx-auto border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                                >
+                                                    {Object.values(AttendanceStatus).map(status => (
+                                                        <option key={status} value={status}>{status}</option>
                                                     ))}
-                                                </div>
+                                                </select>
                                             </td>
                                         </tr>
                                     ))}
@@ -927,13 +1108,13 @@ const StudentAttendanceInputPage = () => {
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Guru</label>
                                         <select className={formInputClass}>
-                                            {initialTeachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                            {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                         </select>
                                     </div>
                                      <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Mata Pelajaran</label>
                                         <select className={formInputClass}>
-                                            {initialSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                            {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                         </select>
                                     </div>
                                     <div>
@@ -953,12 +1134,38 @@ const StudentAttendanceInputPage = () => {
                     </div>
                 </form>
             )}
+
+            {isSuccessModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm m-4 text-center">
+                         <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/50">
+                            <svg className="h-6 w-6 text-green-600 dark:text-green-300" stroke="currentColor" fill="none" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                        <h3 className="text-lg font-bold my-3 text-gray-900 dark:text-gray-100">
+                           Berhasil Disimpan
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                           Data kehadiran telah berhasil disimpan.
+                        </p>
+                        <div className="mt-6 flex justify-center">
+                            <button 
+                                type="button" 
+                                onClick={() => setIsSuccessModalOpen(false)} 
+                                className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-6 rounded focus:outline-none focus:shadow-outline transition duration-200"
+                            >
+                                Tutup
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
 
-const TeacherManagementPage = () => {
-    const [teachers, setTeachers] = useState<Teacher[]>(initialTeachers);
+const TeacherManagementPage = ({ teachers, setTeachers }: { teachers: Teacher[], setTeachers: React.Dispatch<React.SetStateAction<Teacher[]>> }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
     const [currentTeacher, setCurrentTeacher] = useState<Partial<Teacher>>({});
@@ -1108,8 +1315,7 @@ const TeacherManagementPage = () => {
     );
 };
 
-const StudentManagementPage = () => {
-    const [students, setStudents] = useState<Student[]>(initialStudents);
+const StudentManagementPage = ({ students, setStudents, classes }: { students: Student[], setStudents: React.Dispatch<React.SetStateAction<Student[]>>, classes: Class[] }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
     const [currentStudent, setCurrentStudent] = useState<Partial<Student>>({});
@@ -1123,7 +1329,7 @@ const StudentManagementPage = () => {
             gender: Gender.Male, 
             status: StudentStatus.New, 
             entryDate: new Date().toISOString().split('T')[0],
-            classId: initialClasses[0]?.id
+            classId: classes[0]?.id
         });
         setIsModalOpen(true);
     };
@@ -1171,7 +1377,7 @@ const StudentManagementPage = () => {
     };
     
     const getClassName = (classId: number) => {
-        return initialClasses.find(c => c.id === classId)?.name || 'N/A';
+        return classes.find(c => c.id === classId)?.name || 'N/A';
     };
 
     return (
@@ -1262,7 +1468,7 @@ const StudentManagementPage = () => {
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Kelas</label>
                                     <select name="classId" value={currentStudent.classId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required>
-                                        {initialClasses.map(c => (<option key={c.id} value={c.id}>{c.name}</option>))}
+                                        {classes.map(c => (<option key={c.id} value={c.id}>{c.name}</option>))}
                                     </select>
                                 </div>
                                 <div>
@@ -1320,6 +1526,179 @@ const StudentManagementPage = () => {
     );
 };
 
+const StudentTransferPage = ({ students, setStudents, transfers, setTransfers }: {
+    students: Student[];
+    setStudents: React.Dispatch<React.SetStateAction<Student[]>>;
+    transfers: StudentTransfer[];
+    setTransfers: React.Dispatch<React.SetStateAction<StudentTransfer[]>>;
+}) => {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+    const [currentTransfer, setCurrentTransfer] = useState<Partial<StudentTransfer>>({});
+
+    const availableStudents = useMemo(() => {
+        return students.filter(s => s.status !== StudentStatus.Inactive);
+    }, [students]);
+
+    const openModal = (mode: 'add' | 'edit', transfer: StudentTransfer | null = null) => {
+        setModalMode(mode);
+        setCurrentTransfer(transfer || { 
+            studentId: availableStudents[0]?.id,
+            exitDate: new Date().toISOString().split('T')[0],
+            reason: TransferReason.Pindah,
+            notes: ''
+        });
+        setIsModalOpen(true);
+    };
+
+    const closeModal = () => {
+        setIsModalOpen(false);
+        setCurrentTransfer({});
+    };
+
+    const handleSave = () => {
+        if (!currentTransfer.studentId || !currentTransfer.exitDate || !currentTransfer.reason) {
+            alert("Harap isi semua field yang wajib diisi.");
+            return;
+        }
+
+        if (modalMode === 'add') {
+            const newTransfer = { ...currentTransfer, id: Date.now() } as StudentTransfer;
+            setTransfers(prev => [...prev, newTransfer]);
+            setStudents(prev => prev.map(s => 
+                s.id === newTransfer.studentId 
+                ? { ...s, status: StudentStatus.Inactive, exitDate: newTransfer.exitDate } 
+                : s
+            ));
+        } else {
+            setTransfers(prev => prev.map(t => t.id === currentTransfer.id ? { ...t, ...currentTransfer } as StudentTransfer : t));
+            setStudents(prev => prev.map(s => 
+                s.id === currentTransfer.studentId 
+                ? { ...s, exitDate: currentTransfer.exitDate } 
+                : s
+            ));
+        }
+        closeModal();
+    };
+
+    const handleDelete = (transferId: number) => {
+        if (window.confirm("Apakah Anda yakin ingin menghapus data mutasi ini? Tindakan ini akan mengaktifkan kembali status siswa.")) {
+            const transferToDelete = transfers.find(t => t.id === transferId);
+            if (!transferToDelete) return;
+
+            setTransfers(prev => prev.filter(t => t.id !== transferId));
+            setStudents(prev => prev.map(s => 
+                s.id === transferToDelete.studentId 
+                ? { ...s, status: StudentStatus.New, exitDate: undefined } 
+                : s
+            ));
+        }
+    };
+    
+    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        setCurrentTransfer(prev => ({ ...prev, [name]: name === 'studentId' ? Number(value) : value }));
+    };
+
+    const getStudentName = (studentId: number) => {
+        return students.find(s => s.id === studentId)?.name || 'Siswa tidak ditemukan';
+    };
+
+    return (
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Manajemen Mutasi Siswa</h2>
+                <button
+                    onClick={() => openModal('add')}
+                    className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 flex items-center space-x-2"
+                >
+                    <Icon>{ICONS.plus}</Icon>
+                    <span>Catat Mutasi</span>
+                </button>
+            </div>
+
+            <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-700/50">
+                        <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama Siswa</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tanggal Keluar</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Alasan</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Catatan</th>
+                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {transfers.map((transfer, index) => (
+                            <tr key={transfer.id}>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{getStudentName(transfer.studentId)}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{transfer.exitDate}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{transfer.reason}</td>
+                                <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-300">{transfer.notes || '-'}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center space-x-2">
+                                    <button onClick={() => openModal('edit', transfer)} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                                        <Icon>{ICONS.pencil}</Icon>
+                                    </button>
+                                    <button onClick={() => handleDelete(transfer.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                                       <Icon>{ICONS.trash}</Icon>
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            {isModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md m-4">
+                        <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-100">
+                            {modalMode === 'add' ? 'Catat Mutasi Siswa' : 'Edit Mutasi Siswa'}
+                        </h3>
+                        <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Siswa</label>
+                                    <select name="studentId" value={currentTransfer.studentId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" disabled={modalMode==='edit'}>
+                                        {modalMode === 'edit' ? 
+                                            <option value={currentTransfer.studentId}>{getStudentName(currentTransfer.studentId!)}</option>
+                                            : availableStudents.map(s => (<option key={s.id} value={s.id}>{s.name} (NISN: {s.nisn})</option>))
+                                        }
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Keluar</label>
+                                    <input type="date" name="exitDate" value={currentTransfer.exitDate || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark]" required />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Alasan</label>
+                                    <select name="reason" value={currentTransfer.reason || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                        {Object.values(TransferReason).map(r => (<option key={r} value={r}>{r}</option>))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Catatan (Opsional)</label>
+                                    <textarea name="notes" value={currentTransfer.notes || ''} onChange={handleFormChange} rows={3} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></textarea>
+                                </div>
+                            </div>
+                            <div className="mt-6 flex justify-end space-x-3">
+                                <button type="button" onClick={closeModal} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200">
+                                    Batal
+                                </button>
+                                <button type="submit" className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200">
+                                    Simpan
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 // Placeholder for other pages
 function PlaceholderPage({ title }: { title: string }) {
     return (
@@ -1343,23 +1722,32 @@ function App() {
 
 const MainApp = () => {
     const { isAuthenticated } = useAuth();
+
+    // Centralized state management
+    const [students, setStudents] = useState<Student[]>(initialStudents);
+    const [teachers, setTeachers] = useState<Teacher[]>(initialTeachers);
+    const [subjects, setSubjects] = useState<Subject[]>(initialSubjects);
+    const [classes, setClasses] = useState<Class[]>(initialClasses);
+    const [transfers, setTransfers] = useState<StudentTransfer[]>(initialStudentTransfers);
+    const [subjectTeachers, setSubjectTeachers] = useState<SubjectTeacher[]>(initialSubjectTeachers);
+    
     return (
         <HashRouter>
             {isAuthenticated ? (
                 <Layout>
                     <Routes>
-                        <Route path="/" element={<DashboardPage />} />
+                        <Route path="/" element={<DashboardPage students={students} teachers={teachers} classes={classes} />} />
                         <Route path="/identitas-sekolah" element={<SchoolIdentityPage />} />
                         <Route path="/kalender-pendidikan" element={<CalendarManagementPage />} />
-                        <Route path="/guru" element={<TeacherManagementPage />} />
-                        <Route path="/mapel" element={<SubjectManagementPage />} />
-                        <Route path="/pengajar-mapel" element={<PlaceholderPage title="Data Pengajar Mapel"/>} />
-                        <Route path="/siswa" element={<StudentManagementPage />} />
-                        <Route path="/kelas" element={<ClassManagementPage />} />
-                        <Route path="/input-kehadiran" element={<StudentAttendanceInputPage />} />
+                        <Route path="/guru" element={<TeacherManagementPage teachers={teachers} setTeachers={setTeachers} />} />
+                        <Route path="/mapel" element={<SubjectManagementPage subjects={subjects} setSubjects={setSubjects} />} />
+                        <Route path="/pengajar-mapel" element={<SubjectTeacherManagementPage assignments={subjectTeachers} setAssignments={setSubjectTeachers} teachers={teachers} subjects={subjects} classes={classes} />} />
+                        <Route path="/siswa" element={<StudentManagementPage students={students} setStudents={setStudents} classes={classes} />} />
+                        <Route path="/kelas" element={<ClassManagementPage classes={classes} setClasses={setClasses} teachers={teachers} />} />
+                        <Route path="/input-kehadiran" element={<StudentAttendanceInputPage students={students} classes={classes} teachers={teachers} subjects={subjects} />} />
                         <Route path="/rekap-kehadiran-siswa" element={<PlaceholderPage title="Rekap Kehadiran Siswa"/>} />
                         <Route path="/rekap-kehadiran-guru" element={<PlaceholderPage title="Rekap Kehadiran Guru"/>} />
-                        <Route path="/mutasi-siswa" element={<PlaceholderPage title="Data Mutasi Siswa"/>} />
+                        <Route path="/mutasi-siswa" element={<StudentTransferPage students={students} setStudents={setStudents} transfers={transfers} setTransfers={setTransfers} />} />
                         <Route path="/manajemen-pengguna" element={<PlaceholderPage title="Manajemen Pengguna"/>} />
                         <Route path="*" element={<Navigate to="/" />} />
                     </Routes>
