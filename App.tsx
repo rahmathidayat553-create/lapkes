@@ -208,6 +208,176 @@ const useAuth = () => useContext(AuthContext);
 
 // --- COMPONENTS ---
 
+// A reusable and accessible modal component
+type ModalProps = React.PropsWithChildren<{
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (e: React.FormEvent) => void;
+    title: string;
+    maxWidth?: 'max-w-md' | 'max-w-lg' | 'max-w-xl';
+}>;
+
+function Modal({ isOpen, onClose, onSave, title, children, maxWidth = 'max-w-lg' }: ModalProps) {
+    const modalRef = useRef<HTMLDivElement>(null);
+
+    // Close on escape key
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                onClose();
+            }
+        };
+        if (isOpen) {
+            document.addEventListener('keydown', handleKeyDown);
+        }
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isOpen, onClose]);
+
+    // Focus trapping
+    useEffect(() => {
+        if (isOpen && modalRef.current) {
+            const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
+                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            );
+            if (focusableElements.length === 0) return;
+
+            const firstElement = focusableElements[0];
+            const lastElement = focusableElements[focusableElements.length - 1];
+            
+            firstElement.focus();
+
+            const handleTabKey = (event: KeyboardEvent) => {
+                if (event.key === 'Tab') {
+                    if (event.shiftKey) {
+                        if (document.activeElement === firstElement) {
+                            event.preventDefault();
+                            lastElement.focus();
+                        }
+                    } else {
+                        if (document.activeElement === lastElement) {
+                            event.preventDefault();
+                            firstElement.focus();
+                        }
+                    }
+                }
+            };
+            
+            const currentModalRef = modalRef.current;
+            currentModalRef.addEventListener('keydown', handleTabKey);
+
+            return () => {
+                if (currentModalRef) {
+                    currentModalRef.removeEventListener('keydown', handleTabKey);
+                }
+            };
+        }
+    }, [isOpen]);
+
+    if (!isOpen) {
+        return null;
+    }
+
+    return (
+        <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4"
+            onClick={onClose}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-title"
+        >
+            <div
+                ref={modalRef}
+                className={`bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full ${maxWidth} max-h-[90vh] flex flex-col`}
+                onClick={(e) => e.stopPropagation()}
+            >
+                <form onSubmit={onSave} className="flex flex-col h-full">
+                    <div className="p-6">
+                         <h3 id="modal-title" className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                            {title}
+                        </h3>
+                    </div>
+                    <div className="p-6 pt-0 overflow-y-auto flex-grow">
+                        {children}
+                    </div>
+                    <div className="p-6 flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700">
+                        <button type="button" onClick={onClose} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200">
+                            Batal
+                        </button>
+                        <button type="submit" className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200">
+                            Simpan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
+// A reusable and accessible success modal component
+type SuccessModalProps = {
+    isOpen: boolean;
+    onClose: () => void;
+    title: string;
+    message: string;
+};
+
+function SuccessModal({ isOpen, onClose, title, message }: SuccessModalProps) {
+    const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+    useEffect(() => {
+        if (isOpen && closeButtonRef.current) {
+            const handleKeyDown = (event: KeyboardEvent) => {
+                if (event.key === 'Escape') {
+                    onClose();
+                }
+            };
+            document.addEventListener('keydown', handleKeyDown);
+            closeButtonRef.current.focus();
+            return () => {
+                document.removeEventListener('keydown', handleKeyDown);
+            };
+        }
+    }, [isOpen, onClose]);
+
+    if (!isOpen) return null;
+
+    return (
+         <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center"
+            onClick={onClose}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="success-modal-title"
+        >
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm m-4 text-center" onClick={e => e.stopPropagation()}>
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/50">
+                    <svg className="h-6 w-6 text-green-600 dark:text-green-300" stroke="currentColor" fill="none" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                </div>
+                <h3 id="success-modal-title" className="text-lg font-bold my-3 text-gray-900 dark:text-gray-100">
+                   {title}
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                   {message}
+                </p>
+                <div className="mt-6 flex justify-center">
+                    <button
+                        ref={closeButtonRef}
+                        type="button" 
+                        onClick={onClose} 
+                        className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-6 rounded focus:outline-none focus:shadow-outline transition duration-200"
+                    >
+                        Tutup
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function ThemeSwitcher() {
     const { theme, toggleTheme } = useTheme();
     return (
@@ -488,7 +658,8 @@ const CalendarManagementPage = () => {
         setCurrentEvent({});
     };
 
-    const handleSave = () => {
+    const handleSave = (e: React.FormEvent) => {
+        e.preventDefault();
         if (!currentEvent.date || !currentEvent.title || !currentEvent.status) {
             alert("Harap isi semua field yang wajib diisi.");
             return;
@@ -497,7 +668,7 @@ const CalendarManagementPage = () => {
         if (modalMode === 'add') {
             setEvents([...events, { ...currentEvent, id: Date.now() } as CalendarEvent]);
         } else {
-            setEvents(events.map(e => e.id === currentEvent.id ? { ...e, ...currentEvent } : e));
+            setEvents(events.map(ev => ev.id === currentEvent.id ? { ...ev, ...currentEvent } : ev));
         }
         closeModal();
     };
@@ -576,53 +747,116 @@ const CalendarManagementPage = () => {
                 </table>
             </div>
 
-            {isModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md m-4">
-                        <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-100">
-                            {modalMode === 'add' ? 'Tambah Acara Baru' : 'Edit Acara'}
-                        </h3>
-                        <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal</label>
-                                    <input type="date" name="date" value={currentEvent.date || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark]" required />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Acara</label>
-                                    <input type="text" name="title" value={currentEvent.title || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
-                                    <select name="status" value={currentEvent.status || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                        {Object.values(CalendarStatus).map(s => (<option key={s} value={s}>{s}</option>))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Keterangan (Opsional)</label>
-                                    <textarea name="description" value={currentEvent.description || ''} onChange={handleFormChange} rows={3} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></textarea>
-                                </div>
-                            </div>
-                            <div className="mt-6 flex justify-end space-x-3">
-                                <button type="button" onClick={closeModal} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200">
-                                    Batal
-                                </button>
-                                <button type="submit" className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200">
-                                    Simpan
-                                </button>
-                            </div>
-                        </form>
+            <Modal
+                isOpen={isModalOpen}
+                onClose={closeModal}
+                onSave={handleSave}
+                title={modalMode === 'add' ? 'Tambah Acara Baru' : 'Edit Acara'}
+                maxWidth="max-w-md"
+            >
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal</label>
+                        <input type="date" name="date" value={currentEvent.date || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark]" required />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Acara</label>
+                        <input type="text" name="title" value={currentEvent.title || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+                        <select name="status" value={currentEvent.status || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            {Object.values(CalendarStatus).map(s => (<option key={s} value={s}>{s}</option>))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Keterangan (Opsional)</label>
+                        <textarea name="description" value={currentEvent.description || ''} onChange={handleFormChange} rows={3} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></textarea>
                     </div>
                 </div>
-            )}
+            </Modal>
         </div>
     );
 };
+
+// --- Pagination Component ---
+type PaginationProps = {
+    currentPage: number;
+    totalPages: number;
+    onPageChange: (page: number) => void;
+};
+
+function Pagination({ currentPage, totalPages, onPageChange }: PaginationProps) {
+    if (totalPages <= 1) {
+        return null;
+    }
+
+    const handlePrevious = () => {
+        if (currentPage > 1) {
+            onPageChange(currentPage - 1);
+        }
+    };
+
+    const handleNext = () => {
+        if (currentPage < totalPages) {
+            onPageChange(currentPage + 1);
+        }
+    };
+
+    return (
+        <div className="flex items-center justify-between mt-4 py-3">
+             <div className="flex-1 flex justify-between sm:hidden">
+                 <button onClick={handlePrevious} disabled={currentPage === 1} className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">
+                    Previous
+                </button>
+                <button onClick={handleNext} disabled={currentPage === totalPages} className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">
+                    Next
+                </button>
+            </div>
+            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-end">
+                <div>
+                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                         <button
+                            onClick={handlePrevious}
+                            disabled={currentPage === 1}
+                            className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700"
+                        >
+                            <span className="sr-only">Previous</span>
+                            <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                        </button>
+                        <span aria-current="page" className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300">
+                            Page {currentPage} of {totalPages}
+                        </span>
+                        <button
+                            onClick={handleNext}
+                            disabled={currentPage === totalPages}
+                            className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700"
+                        >
+                            <span className="sr-only">Next</span>
+                             <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                            </svg>
+                        </button>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 const SubjectManagementPage = ({ subjects, setSubjects }: { subjects: Subject[], setSubjects: React.Dispatch<React.SetStateAction<Subject[]>> }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
     const [currentSubject, setCurrentSubject] = useState<Partial<Subject>>({});
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 20;
+
+    const paginatedSubjects = useMemo(() => {
+        return subjects.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    }, [subjects, currentPage]);
+    const totalPages = Math.ceil(subjects.length / ITEMS_PER_PAGE);
 
     const openModal = (mode: 'add' | 'edit', subject: Subject | null = null) => {
         setModalMode(mode);
@@ -635,7 +869,8 @@ const SubjectManagementPage = ({ subjects, setSubjects }: { subjects: Subject[],
         setCurrentSubject({});
     };
 
-    const handleSave = () => {
+    const handleSave = (e: React.FormEvent) => {
+        e.preventDefault();
         if (!currentSubject.code || !currentSubject.name) {
             alert("Harap isi semua field.");
             return;
@@ -652,6 +887,9 @@ const SubjectManagementPage = ({ subjects, setSubjects }: { subjects: Subject[],
     const handleDelete = (id: number) => {
         if (window.confirm("Apakah Anda yakin ingin menghapus mata pelajaran ini?")) {
             setSubjects(subjects.filter(s => s.id !== id));
+            if (paginatedSubjects.length === 1 && currentPage > 1) {
+                setCurrentPage(currentPage - 1);
+            }
         }
     };
     
@@ -684,9 +922,9 @@ const SubjectManagementPage = ({ subjects, setSubjects }: { subjects: Subject[],
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        {subjects.map((subject, index) => (
+                        {paginatedSubjects.map((subject, index) => (
                             <tr key={subject.id}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{subject.code}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{subject.name}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center space-x-2">
@@ -702,36 +940,26 @@ const SubjectManagementPage = ({ subjects, setSubjects }: { subjects: Subject[],
                     </tbody>
                 </table>
             </div>
-
-            {isModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md m-4">
-                        <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-100">
-                            {modalMode === 'add' ? 'Tambah Mata Pelajaran' : 'Edit Mata Pelajaran'}
-                        </h3>
-                        <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Kode Mata Pelajaran</label>
-                                    <input type="text" name="code" value={currentSubject.code || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Mata Pelajaran</label>
-                                    <input type="text" name="name" value={currentSubject.name || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
-                                </div>
-                            </div>
-                            <div className="mt-6 flex justify-end space-x-3">
-                                <button type="button" onClick={closeModal} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200">
-                                    Batal
-                                </button>
-                                <button type="submit" className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200">
-                                    Simpan
-                                </button>
-                            </div>
-                        </form>
+             <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+            
+            <Modal
+                isOpen={isModalOpen}
+                onClose={closeModal}
+                onSave={handleSave}
+                title={modalMode === 'add' ? 'Tambah Mata Pelajaran' : 'Edit Mata Pelajaran'}
+                maxWidth="max-w-md"
+            >
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Kode Mata Pelajaran</label>
+                        <input type="text" name="code" value={currentSubject.code || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Mata Pelajaran</label>
+                        <input type="text" name="name" value={currentSubject.name || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
                     </div>
                 </div>
-            )}
+            </Modal>
         </div>
     );
 };
@@ -771,14 +999,14 @@ const SubjectTeacherManagementPage = ({
         setCurrentAssignment({});
     };
 
-    const handleSave = () => {
+    const handleSave = (e: React.FormEvent) => {
+        e.preventDefault();
         if (!currentAssignment.teacherId || !currentAssignment.subjectId || !currentAssignment.classId || !currentAssignment.meetings) {
             alert('Harap isi semua field.');
             return;
         }
 
         if (modalMode === 'add') {
-            // Check for duplicates
             const isDuplicate = assignments.some(
                 a => a.teacherId === currentAssignment.teacherId &&
                      a.subjectId === currentAssignment.subjectId &&
@@ -859,49 +1087,38 @@ const SubjectTeacherManagementPage = ({
                 </table>
             </div>
 
-            {isModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md m-4">
-                        <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-100">
-                            {modalMode === 'add' ? 'Tambah Pengajar Mapel' : 'Edit Pengajar Mapel'}
-                        </h3>
-                        <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Guru</label>
-                                    <select name="teacherId" value={currentAssignment.teacherId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                        {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Mata Pelajaran</label>
-                                    <select name="subjectId" value={currentAssignment.subjectId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                        {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Kelas</label>
-                                    <select name="classId" value={currentAssignment.classId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                        {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Jumlah Pertemuan per Minggu</label>
-                                    <input type="number" name="meetings" min="1" value={currentAssignment.meetings || 1} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-                                </div>
-                            </div>
-                            <div className="mt-6 flex justify-end space-x-3">
-                                <button type="button" onClick={closeModal} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200">
-                                    Batal
-                                </button>
-                                <button type="submit" className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200">
-                                    Simpan
-                                </button>
-                            </div>
-                        </form>
+            <Modal
+                isOpen={isModalOpen}
+                onClose={closeModal}
+                onSave={handleSave}
+                title={modalMode === 'add' ? 'Tambah Pengajar Mapel' : 'Edit Pengajar Mapel'}
+                maxWidth="max-w-md"
+            >
+                 <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Guru</label>
+                        <select name="teacherId" value={currentAssignment.teacherId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Mata Pelajaran</label>
+                        <select name="subjectId" value={currentAssignment.subjectId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Kelas</label>
+                        <select name="classId" value={currentAssignment.classId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Jumlah Pertemuan per Minggu</label>
+                        <input type="number" name="meetings" min="1" value={currentAssignment.meetings || 1} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
                     </div>
                 </div>
-            )}
+            </Modal>
         </div>
     );
 };
@@ -911,6 +1128,13 @@ const ClassManagementPage = ({ classes, setClasses, teachers }: { classes: Class
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
     const [currentClass, setCurrentClass] = useState<Partial<Class>>({});
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 20;
+
+    const paginatedClasses = useMemo(() => {
+        return classes.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    }, [classes, currentPage]);
+    const totalPages = Math.ceil(classes.length / ITEMS_PER_PAGE);
 
     const openModal = (mode: 'add' | 'edit', cls: Class | null = null) => {
         setModalMode(mode);
@@ -923,7 +1147,8 @@ const ClassManagementPage = ({ classes, setClasses, teachers }: { classes: Class
         setCurrentClass({});
     };
 
-    const handleSave = () => {
+    const handleSave = (e: React.FormEvent) => {
+        e.preventDefault();
         if (!currentClass.code || !currentClass.name || !currentClass.homeroomTeacherId) {
             alert("Harap isi semua field.");
             return;
@@ -940,6 +1165,9 @@ const ClassManagementPage = ({ classes, setClasses, teachers }: { classes: Class
     const handleDelete = (id: number) => {
         if (window.confirm("Apakah Anda yakin ingin menghapus kelas ini?")) {
             setClasses(classes.filter(c => c.id !== id));
+            if (paginatedClasses.length === 1 && currentPage > 1) {
+                setCurrentPage(currentPage - 1);
+            }
         }
     };
     
@@ -960,7 +1188,6 @@ const ClassManagementPage = ({ classes, setClasses, teachers }: { classes: Class
                     onClick={() => openModal('add')}
                     className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 flex items-center space-x-2"
                 >
-                    {/* FIX: Replaced hardcoded path with icon constant for consistency */}
                     <Icon>{ICONS.plus}</Icon>
                     <span>Tambah Kelas</span>
                 </button>
@@ -978,9 +1205,9 @@ const ClassManagementPage = ({ classes, setClasses, teachers }: { classes: Class
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        {classes.map((cls, index) => (
+                        {paginatedClasses.map((cls, index) => (
                             <tr key={cls.id}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{cls.code}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{cls.name}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{getTeacherName(cls.homeroomTeacherId)}</td>
@@ -997,49 +1224,39 @@ const ClassManagementPage = ({ classes, setClasses, teachers }: { classes: Class
                     </tbody>
                 </table>
             </div>
+            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
 
-            {isModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md m-4">
-                        <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-100">
-                            {modalMode === 'add' ? 'Tambah Kelas Baru' : 'Edit Kelas'}
-                        </h3>
-                        <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Kode Kelas</label>
-                                    <input type="text" name="code" value={currentClass.code || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Kelas</label>
-                                    <input type="text" name="name" value={currentClass.name || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Wali Kelas</label>
-                                    <select name="homeroomTeacherId" value={currentClass.homeroomTeacherId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                        {teachers.map(teacher => (
-                                            <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-                            <div className="mt-6 flex justify-end space-x-3">
-                                <button type="button" onClick={closeModal} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200">
-                                    Batal
-                                </button>
-                                <button type="submit" className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200">
-                                    Simpan
-                                </button>
-                            </div>
-                        </form>
+            <Modal
+                isOpen={isModalOpen}
+                onClose={closeModal}
+                onSave={handleSave}
+                title={modalMode === 'add' ? 'Tambah Kelas Baru' : 'Edit Kelas'}
+                maxWidth="max-w-md"
+            >
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Kode Kelas</label>
+                        <input type="text" name="code" value={currentClass.code || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Kelas</label>
+                        <input type="text" name="name" value={currentClass.name || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Wali Kelas</label>
+                        <select name="homeroomTeacherId" value={currentClass.homeroomTeacherId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            {teachers.map(teacher => (
+                                <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
+                            ))}
+                        </select>
                     </div>
                 </div>
-            )}
+            </Modal>
         </div>
     );
 };
 
-const StudentAttendanceInputPage = ({ students, classes, teachers, subjects }: { students: Student[], classes: Class[], teachers: Teacher[], subjects: Subject[] }) => {
+const StudentAttendanceInputPage = ({ students, classes }: { students: Student[], classes: Class[] }) => {
     const [selectedClassId, setSelectedClassId] = useState<string>('');
     const [attendanceDate, setAttendanceDate] = useState('');
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
@@ -1058,7 +1275,7 @@ const StudentAttendanceInputPage = ({ students, classes, teachers, subjects }: {
     }, [studentsInClass]);
 
     const [attendance, setAttendance] = useState<{ [key: number]: string }>({});
-    const [attendingTeachersCount, setAttendingTeachersCount] = useState(1);
+    const [attendingTeachersCount, setAttendingTeachersCount] = useState(0);
 
     useEffect(() => {
         setAttendance(initialAttendance);
@@ -1082,7 +1299,7 @@ const StudentAttendanceInputPage = ({ students, classes, teachers, subjects }: {
         setAttendanceDate('');
         setSelectedClassId('');
         setAttendance({});
-        setAttendingTeachersCount(1);
+        setAttendingTeachersCount(0);
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -1091,6 +1308,7 @@ const StudentAttendanceInputPage = ({ students, classes, teachers, subjects }: {
             classId: selectedClassId,
             date: attendanceDate,
             studentAttendance: attendance,
+            teacherAttendanceCount: attendingTeachersCount,
         });
         setIsSuccessModalOpen(true);
     };
@@ -1180,32 +1398,8 @@ const StudentAttendanceInputPage = ({ students, classes, teachers, subjects }: {
                              <div className="mb-4 max-w-xs">
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Jumlah Guru Hadir</label>
                                 <select value={attendingTeachersCount} onChange={(e) => setAttendingTeachersCount(Number(e.target.value))} className={formInputClass}>
-                                    {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
+                                    {Array.from({ length: 11 }, (_, i) => i).map(n => <option key={n} value={n}>{n}</option>)}
                                 </select>
-                             </div>
-                             <div className="space-y-4">
-                                {Array.from({ length: attendingTeachersCount }).map((_, index) => (
-                                    <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border border-gray-200 dark:border-gray-700 rounded-md">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Guru</label>
-                                            <select className={formInputClass}>
-                                                {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                            </select>
-                                        </div>
-                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Mata Pelajaran</label>
-                                            <select className={formInputClass}>
-                                                {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Jumlah Pertemuan</label>
-                                             <select className={formInputClass}>
-                                                {Array.from({ length: 10 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}</option>)}
-                                            </select>
-                                        </div>
-                                    </div>
-                                ))}
                              </div>
                         </div>
                          <div className="flex justify-end">
@@ -1217,32 +1411,12 @@ const StudentAttendanceInputPage = ({ students, classes, teachers, subjects }: {
                 )}
             </form>
 
-            {isSuccessModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm m-4 text-center">
-                         <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/50">
-                            <svg className="h-6 w-6 text-green-600 dark:text-green-300" stroke="currentColor" fill="none" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                            </svg>
-                        </div>
-                        <h3 className="text-lg font-bold my-3 text-gray-900 dark:text-gray-100">
-                           Berhasil Disimpan
-                        </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                           Data kehadiran telah berhasil disimpan.
-                        </p>
-                        <div className="mt-6 flex justify-center">
-                            <button 
-                                type="button" 
-                                onClick={closeSuccessModal} 
-                                className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-6 rounded focus:outline-none focus:shadow-outline transition duration-200"
-                            >
-                                Tutup
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <SuccessModal 
+                isOpen={isSuccessModalOpen}
+                onClose={closeSuccessModal}
+                title="Berhasil Disimpan"
+                message="Data kehadiran telah berhasil disimpan."
+            />
         </div>
     );
 };
@@ -1252,6 +1426,13 @@ const TeacherManagementPage = ({ teachers, setTeachers }: { teachers: Teacher[],
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
     const [currentTeacher, setCurrentTeacher] = useState<Partial<Teacher>>({});
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 20;
+
+    const paginatedTeachers = useMemo(() => {
+        return teachers.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    }, [teachers, currentPage]);
+    const totalPages = Math.ceil(teachers.length / ITEMS_PER_PAGE);
 
     const openModal = (mode: 'add' | 'edit', teacher: Teacher | null = null) => {
         setModalMode(mode);
@@ -1264,7 +1445,8 @@ const TeacherManagementPage = ({ teachers, setTeachers }: { teachers: Teacher[],
         setCurrentTeacher({});
     };
 
-    const handleSave = () => {
+    const handleSave = (e: React.FormEvent) => {
+        e.preventDefault();
         if (!currentTeacher.name || !currentTeacher.gender || !currentTeacher.status) {
             alert("Harap isi semua field yang wajib diisi.");
             return;
@@ -1286,6 +1468,9 @@ const TeacherManagementPage = ({ teachers, setTeachers }: { teachers: Teacher[],
     const handleDelete = (id: number) => {
         if (window.confirm("Apakah Anda yakin ingin menghapus data guru ini?")) {
             setTeachers(teachers.filter(t => t.id !== id));
+            if (paginatedTeachers.length === 1 && currentPage > 1) {
+                setCurrentPage(currentPage - 1);
+            }
         }
     };
     
@@ -1326,9 +1511,9 @@ const TeacherManagementPage = ({ teachers, setTeachers }: { teachers: Teacher[],
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        {teachers.map((teacher, index) => (
+                        {paginatedTeachers.map((teacher, index) => (
                             <tr key={teacher.id}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{teacher.name}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{teacher.gender}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{teacher.status}</td>
@@ -1346,54 +1531,44 @@ const TeacherManagementPage = ({ teachers, setTeachers }: { teachers: Teacher[],
                     </tbody>
                 </table>
             </div>
+            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
 
-            {isModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md m-4">
-                        <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-100">
-                            {modalMode === 'add' ? 'Tambah Guru Baru' : 'Edit Data Guru'}
-                        </h3>
-                        <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Lengkap</label>
-                                    <input type="text" name="name" value={currentTeacher.name || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Jenis Kelamin</label>
-                                    <select name="gender" value={currentTeacher.gender || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                        {Object.values(Gender).map(g => (
-                                            <option key={g} value={g}>{g}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Status Kepegawaian</label>
-                                    <select name="status" value={currentTeacher.status || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                        {Object.values(TeacherStatus).map(s => (
-                                            <option key={s} value={s}>{s}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                {currentTeacher.status === TeacherStatus.ASN && (
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">NIP (Nomor Induk Pegawai)</label>
-                                        <input type="text" name="nip" value={currentTeacher.nip || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
-                                    </div>
-                                )}
-                            </div>
-                            <div className="mt-6 flex justify-end space-x-3">
-                                <button type="button" onClick={closeModal} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200">
-                                    Batal
-                                </button>
-                                <button type="submit" className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200">
-                                    Simpan
-                                </button>
-                            </div>
-                        </form>
+            <Modal
+                isOpen={isModalOpen}
+                onClose={closeModal}
+                onSave={handleSave}
+                title={modalMode === 'add' ? 'Tambah Guru Baru' : 'Edit Data Guru'}
+                maxWidth="max-w-md"
+            >
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Lengkap</label>
+                        <input type="text" name="name" value={currentTeacher.name || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
                     </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Jenis Kelamin</label>
+                        <select name="gender" value={currentTeacher.gender || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            {Object.values(Gender).map(g => (
+                                <option key={g} value={g}>{g}</option>
+                            ))}
+                        </select>
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Status Kepegawaian</label>
+                        <select name="status" value={currentTeacher.status || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            {Object.values(TeacherStatus).map(s => (
+                                <option key={s} value={s}>{s}</option>
+                            ))}
+                        </select>
+                    </div>
+                    {currentTeacher.status === TeacherStatus.ASN && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">NIP (Nomor Induk Pegawai)</label>
+                            <input type="text" name="nip" value={currentTeacher.nip || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
+                        </div>
+                    )}
                 </div>
-            )}
+            </Modal>
         </div>
     );
 };
@@ -1403,6 +1578,13 @@ const StudentManagementPage = ({ students, setStudents, classes }: { students: S
     const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
     const [currentStudent, setCurrentStudent] = useState<Partial<Student>>({});
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 20;
+
+    const paginatedStudents = useMemo(() => {
+        return students.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    }, [students, currentPage]);
+    const totalPages = Math.ceil(students.length / ITEMS_PER_PAGE);
 
     const openModal = (mode: 'add' | 'edit', student: Student | null = null) => {
         setModalMode(mode);
@@ -1422,7 +1604,8 @@ const StudentManagementPage = ({ students, setStudents, classes }: { students: S
         setCurrentStudent({});
     };
 
-    const handleSave = () => {
+    const handleSave = (e: React.FormEvent) => {
+        e.preventDefault();
         if (!currentStudent.nisn || !currentStudent.name || !currentStudent.classId || !currentStudent.entryDate) {
             alert("Harap isi semua field yang wajib diisi.");
             return;
@@ -1439,6 +1622,9 @@ const StudentManagementPage = ({ students, setStudents, classes }: { students: S
     const handleDelete = (id: number) => {
         if (window.confirm("Apakah Anda yakin ingin menghapus data siswa ini?")) {
             setStudents(students.filter(s => s.id !== id));
+            if (paginatedStudents.length === 1 && currentPage > 1) {
+                setCurrentPage(currentPage - 1);
+            }
         }
     };
     
@@ -1490,9 +1676,9 @@ const StudentManagementPage = ({ students, setStudents, classes }: { students: S
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        {students.map((student, index) => (
+                        {paginatedStudents.map((student, index) => (
                             <tr key={student.id}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                                     <div className="flex items-center">
                                         <div className="flex-shrink-0 h-10 w-10">
@@ -1525,86 +1711,75 @@ const StudentManagementPage = ({ students, setStudents, classes }: { students: S
                     </tbody>
                 </table>
             </div>
+            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
 
-            {isModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg m-4 max-h-[90vh] overflow-y-auto">
-                        <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-100">
-                            {modalMode === 'add' ? 'Tambah Siswa Baru' : 'Edit Data Siswa'}
-                        </h3>
-                        <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">NISN</label>
-                                    <input type="text" name="nisn" value={currentStudent.nisn || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Lengkap</label>
-                                    <input type="text" name="name" value={currentStudent.name || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Jenis Kelamin</label>
-                                    <select name="gender" value={currentStudent.gender || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                        {Object.values(Gender).map(g => (<option key={g} value={g}>{g}</option>))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Kelas</label>
-                                    <select name="classId" value={currentStudent.classId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required>
-                                        {classes.map(c => (<option key={c.id} value={c.id}>{c.name}</option>))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Status Siswa</label>
-                                    <select name="status" value={currentStudent.status || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                        {Object.values(StudentStatus).map(s => (<option key={s} value={s}>{s}</option>))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Masuk</label>
-                                    <input type="date" name="entryDate" value={currentStudent.entryDate || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark]" required />
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Foto Siswa (Opsional)</label>
-                                    <div className="mt-2 flex items-center space-x-4">
-                                        <img 
-                                            className="h-16 w-16 rounded-full object-cover" 
-                                            src={currentStudent.photo || `https://ui-avatars.com/api/?name=${(currentStudent.name || 'S').replace(/\s/g, '+')}&background=random`} 
-                                            alt="Foto Siswa" 
-                                        />
-                                        <input 
-                                            type="file" 
-                                            accept="image/*" 
-                                            ref={fileInputRef} 
-                                            onChange={handlePhotoChange} 
-                                            className="hidden" 
-                                        />
-                                        <button 
-                                            type="button" 
-                                            onClick={() => fileInputRef.current?.click()}
-                                            className="ml-5 bg-white dark:bg-gray-700 py-2 px-3 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                                        >
-                                            Pilih Foto
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">No. WhatsApp (Opsional)</label>
-                                    <input type="text" name="whatsapp" value={currentStudent.whatsapp || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="628123456789" />
-                                </div>
-                            </div>
-                            <div className="mt-6 flex justify-end space-x-3">
-                                <button type="button" onClick={closeModal} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200">
-                                    Batal
-                                </button>
-                                <button type="submit" className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200">
-                                    Simpan
-                                </button>
-                            </div>
-                        </form>
+            <Modal
+                isOpen={isModalOpen}
+                onClose={closeModal}
+                onSave={handleSave}
+                title={modalMode === 'add' ? 'Tambah Siswa Baru' : 'Edit Data Siswa'}
+            >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">NISN</label>
+                        <input type="text" name="nisn" value={currentStudent.nisn || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Lengkap</label>
+                        <input type="text" name="name" value={currentStudent.name || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Jenis Kelamin</label>
+                        <select name="gender" value={currentStudent.gender || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            {Object.values(Gender).map(g => (<option key={g} value={g}>{g}</option>))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Kelas</label>
+                        <select name="classId" value={currentStudent.classId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required>
+                            {classes.map(c => (<option key={c.id} value={c.id}>{c.name}</option>))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Status Siswa</label>
+                        <select name="status" value={currentStudent.status || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            {Object.values(StudentStatus).map(s => (<option key={s} value={s}>{s}</option>))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Masuk</label>
+                        <input type="date" name="entryDate" value={currentStudent.entryDate || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark]" required />
+                    </div>
+                    <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Foto Siswa (Opsional)</label>
+                        <div className="mt-2 flex items-center space-x-4">
+                            <img 
+                                className="h-16 w-16 rounded-full object-cover" 
+                                src={currentStudent.photo || `https://ui-avatars.com/api/?name=${(currentStudent.name || 'S').replace(/\s/g, '+')}&background=random`} 
+                                alt="Foto Siswa" 
+                            />
+                            <input 
+                                type="file" 
+                                accept="image/*" 
+                                ref={fileInputRef} 
+                                onChange={handlePhotoChange} 
+                                className="hidden" 
+                            />
+                            <button 
+                                type="button" 
+                                onClick={() => fileInputRef.current?.click()}
+                                className="ml-5 bg-white dark:bg-gray-700 py-2 px-3 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                            >
+                                Pilih Foto
+                            </button>
+                        </div>
+                    </div>
+                    <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">No. WhatsApp (Opsional)</label>
+                        <input type="text" name="whatsapp" value={currentStudent.whatsapp || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="628123456789" />
                     </div>
                 </div>
-            )}
+            </Modal>
         </div>
     );
 };
@@ -1639,7 +1814,8 @@ const StudentTransferPage = ({ students, setStudents, transfers, setTransfers }:
         setCurrentTransfer({});
     };
 
-    const handleSave = () => {
+    const handleSave = (e: React.FormEvent) => {
+        e.preventDefault();
         if (!currentTransfer.studentId || !currentTransfer.exitDate || !currentTransfer.reason) {
             alert("Harap isi semua field yang wajib diisi.");
             return;
@@ -1734,50 +1910,39 @@ const StudentTransferPage = ({ students, setStudents, transfers, setTransfers }:
                 </table>
             </div>
 
-            {isModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md m-4">
-                        <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-100">
-                            {modalMode === 'add' ? 'Catat Mutasi Siswa' : 'Edit Mutasi Siswa'}
-                        </h3>
-                        <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Siswa</label>
-                                    <select name="studentId" value={currentTransfer.studentId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" disabled={modalMode==='edit'}>
-                                        {modalMode === 'edit' ? 
-                                            <option value={currentTransfer.studentId}>{getStudentName(currentTransfer.studentId!)}</option>
-                                            : availableStudents.map(s => (<option key={s.id} value={s.id}>{s.name} (NISN: {s.nisn})</option>))
-                                        }
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Keluar</label>
-                                    <input type="date" name="exitDate" value={currentTransfer.exitDate || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark]" required />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Alasan</label>
-                                    <select name="reason" value={currentTransfer.reason || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                        {Object.values(TransferReason).map(r => (<option key={r} value={r}>{r}</option>))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Catatan (Opsional)</label>
-                                    <textarea name="notes" value={currentTransfer.notes || ''} onChange={handleFormChange} rows={3} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></textarea>
-                                </div>
-                            </div>
-                            <div className="mt-6 flex justify-end space-x-3">
-                                <button type="button" onClick={closeModal} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200">
-                                    Batal
-                                </button>
-                                <button type="submit" className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200">
-                                    Simpan
-                                </button>
-                            </div>
-                        </form>
+            <Modal
+                isOpen={isModalOpen}
+                onClose={closeModal}
+                onSave={handleSave}
+                title={modalMode === 'add' ? 'Catat Mutasi Siswa' : 'Edit Mutasi Siswa'}
+                maxWidth="max-w-md"
+            >
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Siswa</label>
+                        <select name="studentId" value={currentTransfer.studentId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" disabled={modalMode==='edit'}>
+                            {modalMode === 'edit' ? 
+                                <option value={currentTransfer.studentId}>{getStudentName(currentTransfer.studentId!)}</option>
+                                : availableStudents.map(s => (<option key={s.id} value={s.id}>{s.name} (NISN: {s.nisn})</option>))
+                            }
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Keluar</label>
+                        <input type="date" name="exitDate" value={currentTransfer.exitDate || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark]" required />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Alasan</label>
+                        <select name="reason" value={currentTransfer.reason || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            {Object.values(TransferReason).map(r => (<option key={r} value={r}>{r}</option>))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Catatan (Opsional)</label>
+                        <textarea name="notes" value={currentTransfer.notes || ''} onChange={handleFormChange} rows={3} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></textarea>
                     </div>
                 </div>
-            )}
+            </Modal>
         </div>
     );
 };
@@ -2237,7 +2402,7 @@ const MainApp = () => {
                         <Route path="/pengajar-mapel" element={<SubjectTeacherManagementPage assignments={subjectTeachers} setAssignments={setSubjectTeachers} teachers={teachers} subjects={subjects} classes={classes} />} />
                         <Route path="/siswa" element={<StudentManagementPage students={students} setStudents={setStudents} classes={classes} />} />
                         <Route path="/kelas" element={<ClassManagementPage classes={classes} setClasses={setClasses} teachers={teachers} />} />
-                        <Route path="/input-kehadiran" element={<StudentAttendanceInputPage students={students} classes={classes} teachers={teachers} subjects={subjects} />} />
+                        <Route path="/input-kehadiran" element={<StudentAttendanceInputPage students={students} classes={classes} />} />
                         <Route path="/rekap-kehadiran-siswa" element={<RekapKehadiranSiswaPage students={students} classes={classes} attendanceRecords={studentAttendance} />} />
                         <Route path="/rekap-kehadiran-guru" element={<RekapKehadiranGuruPage teachers={teachers} subjectTeachers={subjectTeachers} attendanceRecords={teacherAttendance}/>} />
                         <Route path="/mutasi-siswa" element={<StudentTransferPage students={students} setStudents={setStudents} transfers={transfers} setTransfers={setTransfers} />} />
