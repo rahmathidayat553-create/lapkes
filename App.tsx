@@ -129,13 +129,14 @@ const ICONS = {
   pencil: <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />,
   trash: <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />,
   download: <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />,
+  warning: <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />,
 };
 
 // FIX: Changed prop types to use React.PropsWithChildren to resolve errors about missing 'children' prop.
-type IconProps = React.PropsWithChildren<{}>;
-function Icon({ children }: IconProps) {
+type IconProps = React.PropsWithChildren<{ className?: string }>;
+function Icon({ children, className = "w-6 h-6" }: IconProps) {
     return (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
             {children}
         </svg>
     );
@@ -207,6 +208,16 @@ function AuthProvider({ children }: AuthProviderProps) {
 const useAuth = () => useContext(AuthContext);
 
 // --- COMPONENTS ---
+
+// --- Loading Spinner Component ---
+function LoadingSpinner() {
+    return (
+        <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary-500"></div>
+        </div>
+    );
+}
+
 
 // --- Tooltip Component ---
 type TooltipProps = React.PropsWithChildren<{
@@ -402,6 +413,57 @@ function SuccessModal({ isOpen, onClose, title, message }: SuccessModalProps) {
     );
 }
 
+// --- Confirmation Modal for Deletion ---
+type ConfirmationModalProps = {
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+    title: string;
+    message: string | React.ReactNode;
+};
+
+function ConfirmationModal({ isOpen, onClose, onConfirm, title, message }: ConfirmationModalProps) {
+    const titleId = useMemo(() => `confirm-modal-title-${Math.random().toString(36).substr(2, 9)}`, []);
+    
+    return (
+        <BaseModal isOpen={isOpen} onClose={onClose} titleId={titleId} maxWidth="max-w-md">
+            <div className="p-6">
+                <div className="flex items-start">
+                    <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/50 sm:mx-0 sm:h-10 sm:w-10">
+                        <Icon className="h-6 w-6 text-red-600 dark:text-red-300">{ICONS.warning}</Icon>
+                    </div>
+                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                        <h3 id={titleId} className="text-lg leading-6 font-bold text-gray-900 dark:text-gray-100">
+                           {title}
+                        </h3>
+                        <div className="mt-2">
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                               {message}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div className="p-4 flex justify-end space-x-3 bg-gray-50 dark:bg-gray-800/50 rounded-b-lg">
+                 <button 
+                    type="button" 
+                    onClick={onClose} 
+                    className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200 hover:scale-105"
+                >
+                    Batal
+                </button>
+                <button 
+                    type="button" 
+                    onClick={onConfirm} 
+                    className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 hover:scale-105"
+                >
+                    Hapus
+                </button>
+            </div>
+        </BaseModal>
+    );
+}
+
 
 function ThemeSwitcher() {
     const { theme, toggleTheme } = useTheme();
@@ -435,7 +497,7 @@ const LoginPage = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 animate-fade-in">
             <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg shadow-md p-8">
                 <h2 className="text-2xl font-bold text-center text-gray-800 dark:text-gray-100 mb-2">LAPKES</h2>
                 <p className="text-center text-gray-600 dark:text-gray-400 mb-6">Laporan Kesiswaan</p>
@@ -450,7 +512,7 @@ const LoginPage = () => {
                             type="text"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
-                            className="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600"
+                            className="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 transition-all duration-200"
                             placeholder="admin"
                         />
                     </div>
@@ -463,11 +525,11 @@ const LoginPage = () => {
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600"
+                            className="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 transition-all duration-200"
                             placeholder="password123"
                         />
                     </div>
-                    <button type="submit" className="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200">
+                    <button type="submit" className="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 hover:scale-105">
                         Login
                     </button>
                 </form>
@@ -508,9 +570,9 @@ const Sidebar = () => {
                     <Link
                         key={item.path}
                         to={item.path}
-                        className={`flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                        className={`flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ease-in-out ${
                             isActive(item.path) ? 'bg-primary-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                        }`}
+                        } hover:translate-x-1`}
                     >
                         <Icon>{item.icon}</Icon>
                         <span>{item.name}</span>
@@ -518,7 +580,7 @@ const Sidebar = () => {
                 ))}
             </nav>
             <div className="px-4 py-4 border-t border-gray-700 dark:border-gray-800">
-                 <button onClick={logout} className="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-gray-300 hover:bg-red-600 hover:text-white">
+                 <button onClick={logout} className="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ease-in-out text-gray-300 hover:bg-red-600 hover:text-white hover:translate-x-1">
                     <Icon>{ICONS.logout}</Icon>
                     <span>Logout</span>
                 </button>
@@ -546,12 +608,13 @@ const Header = () => {
 // FIX: Changed prop types to use React.PropsWithChildren to resolve errors about missing 'children' prop.
 type LayoutProps = React.PropsWithChildren<{}>;
 function Layout({ children }: LayoutProps) {
+    const location = useLocation();
     return (
         <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
             <Sidebar />
             <div className="flex-1 flex flex-col overflow-hidden">
                 <Header />
-                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-gray-900 p-6">
+                <main key={location.pathname} className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-gray-900 p-6 animate-fade-in">
                     {children}
                 </main>
             </div>
@@ -565,19 +628,19 @@ const DashboardPage = ({ students, teachers, classes }: { students: Student[]; t
     return (
         <div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow transition-shadow duration-200 hover:shadow-lg">
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1">
                     <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Total Siswa Aktif</h3>
                     <p className="text-3xl font-bold text-gray-800 dark:text-gray-100">{activeStudentCount}</p>
                 </div>
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow transition-shadow duration-200 hover:shadow-lg">
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1">
                     <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Total Guru</h3>
                     <p className="text-3xl font-bold text-gray-800 dark:text-gray-100">{teachers.length}</p>
                 </div>
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow transition-shadow duration-200 hover:shadow-lg">
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1">
                     <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Total Kelas</h3>
                     <p className="text-3xl font-bold text-gray-800 dark:text-gray-100">{classes.length}</p>
                 </div>
-                 <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow transition-shadow duration-200 hover:shadow-lg">
+                 <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1">
                     <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Kehadiran Hari Ini</h3>
                     <p className="text-3xl font-bold text-gray-800 dark:text-gray-100">95%</p>
                 </div>
@@ -605,7 +668,7 @@ const SchoolIdentityPage = () => {
         // In real app, you would save this to a backend.
     };
     
-    const formInputClass = "mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white";
+    const formInputClass = "mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white transition-all duration-200";
 
     return (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
@@ -652,7 +715,7 @@ const SchoolIdentityPage = () => {
                     </div>
                 </div>
                 <div className="mt-6 text-right">
-                    <button type="submit" className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200">
+                    <button type="submit" className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 hover:scale-105">
                         Simpan Perubahan
                     </button>
                 </div>
@@ -666,6 +729,14 @@ const CalendarManagementPage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
     const [currentEvent, setCurrentEvent] = useState<Partial<CalendarEvent>>({});
+    const [eventToDelete, setEventToDelete] = useState<number | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setLoading(false), 500);
+        return () => clearTimeout(timer);
+    }, []);
+
 
     const openModal = (mode: 'add' | 'edit', event: CalendarEvent | null = null) => {
         setModalMode(mode);
@@ -698,9 +769,10 @@ const CalendarManagementPage = () => {
         closeModal();
     };
 
-    const handleDelete = (id: number) => {
-        if (window.confirm("Apakah Anda yakin ingin menghapus acara ini?")) {
-            setEvents(events.filter(e => e.id !== id));
+    const handleDelete = () => {
+        if (eventToDelete !== null) {
+            setEvents(events.filter(e => e.id !== eventToDelete));
+            setEventToDelete(null);
         }
     };
     
@@ -725,56 +797,60 @@ const CalendarManagementPage = () => {
 
     return (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Manajemen Kalender Pendidikan</h2>
-                <button
-                    onClick={() => openModal('add')}
-                    className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 flex items-center space-x-2"
-                >
-                    <Icon>{ICONS.plus}</Icon>
-                    <span>Tambah Acara</span>
-                </button>
-            </div>
+            {loading ? <LoadingSpinner /> : (
+                <>
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Manajemen Kalender Pendidikan</h2>
+                        <button
+                            onClick={() => openModal('add')}
+                            className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 flex items-center space-x-2 hover:scale-105"
+                        >
+                            <Icon>{ICONS.plus}</Icon>
+                            <span>Tambah Acara</span>
+                        </button>
+                    </div>
 
-            <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700/50">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tanggal</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama Acara</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Keterangan</th>
-                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        {events.map((event, index) => (
-                            <tr key={event.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{event.date}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{event.title}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                                    <span className={getStatusBadge(event.status)}>{event.status}</span>
-                                </td>
-                                <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-300">{event.description || '-'}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center space-x-2">
-                                    <Tooltip text="Edit">
-                                        <button onClick={() => openModal('edit', event)} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
-                                            <Icon>{ICONS.pencil}</Icon>
-                                        </button>
-                                    </Tooltip>
-                                    <Tooltip text="Hapus">
-                                        <button onClick={() => handleDelete(event.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
-                                           <Icon>{ICONS.trash}</Icon>
-                                        </button>
-                                    </Tooltip>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700/50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tanggal</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama Acara</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Keterangan</th>
+                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                {events.map((event, index) => (
+                                    <tr key={event.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{event.date}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{event.title}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                                            <span className={getStatusBadge(event.status)}>{event.status}</span>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-300">{event.description || '-'}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center space-x-2">
+                                            <Tooltip text="Edit">
+                                                <button onClick={() => openModal('edit', event)} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-125">
+                                                    <Icon>{ICONS.pencil}</Icon>
+                                                </button>
+                                            </Tooltip>
+                                            <Tooltip text="Hapus">
+                                                <button onClick={() => setEventToDelete(event.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-125">
+                                                   <Icon>{ICONS.trash}</Icon>
+                                                </button>
+                                            </Tooltip>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </>
+            )}
 
             <Modal
                 isOpen={isModalOpen}
@@ -786,24 +862,32 @@ const CalendarManagementPage = () => {
                 <div className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal</label>
-                        <input type="date" name="date" value={currentEvent.date || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark]" required />
+                        <input type="date" name="date" value={currentEvent.date || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark] transition-all duration-200" required />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Acara</label>
-                        <input type="text" name="title" value={currentEvent.title || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
+                        <input type="text" name="title" value={currentEvent.title || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200" required />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
-                        <select name="status" value={currentEvent.status || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <select name="status" value={currentEvent.status || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200">
                             {Object.values(CalendarStatus).map(s => (<option key={s} value={s}>{s}</option>))}
                         </select>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Keterangan (Opsional)</label>
-                        <textarea name="description" value={currentEvent.description || ''} onChange={handleFormChange} rows={3} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></textarea>
+                        <textarea name="description" value={currentEvent.description || ''} onChange={handleFormChange} rows={3} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200"></textarea>
                     </div>
                 </div>
             </Modal>
+
+            <ConfirmationModal
+                isOpen={eventToDelete !== null}
+                onClose={() => setEventToDelete(null)}
+                onConfirm={handleDelete}
+                title="Konfirmasi Penghapusan"
+                message="Apakah Anda yakin ingin menghapus acara ini? Tindakan ini tidak dapat dibatalkan."
+            />
         </div>
     );
 };
@@ -880,7 +964,14 @@ const SubjectManagementPage = ({ subjects, setSubjects }: { subjects: Subject[],
     const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
     const [currentSubject, setCurrentSubject] = useState<Partial<Subject>>({});
     const [currentPage, setCurrentPage] = useState(1);
+    const [subjectToDelete, setSubjectToDelete] = useState<number | null>(null);
+    const [loading, setLoading] = useState(true);
     const ITEMS_PER_PAGE = 20;
+
+    useEffect(() => {
+        const timer = setTimeout(() => setLoading(false), 500);
+        return () => clearTimeout(timer);
+    }, []);
 
     const paginatedSubjects = useMemo(() => {
         return subjects.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -913,12 +1004,13 @@ const SubjectManagementPage = ({ subjects, setSubjects }: { subjects: Subject[],
         closeModal();
     };
 
-    const handleDelete = (id: number) => {
-        if (window.confirm("Apakah Anda yakin ingin menghapus mata pelajaran ini?")) {
-            setSubjects(subjects.filter(s => s.id !== id));
+    const handleDelete = () => {
+        if (subjectToDelete !== null) {
+            setSubjects(subjects.filter(s => s.id !== subjectToDelete));
             if (paginatedSubjects.length === 1 && currentPage > 1) {
                 setCurrentPage(currentPage - 1);
             }
+            setSubjectToDelete(null);
         }
     };
     
@@ -929,51 +1021,55 @@ const SubjectManagementPage = ({ subjects, setSubjects }: { subjects: Subject[],
 
     return (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Manajemen Mata Pelajaran</h2>
-                <button
-                    onClick={() => openModal('add')}
-                    className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 flex items-center space-x-2"
-                >
-                    <Icon>{ICONS.plus}</Icon>
-                    <span>Tambah Mapel</span>
-                </button>
-            </div>
+            {loading ? <LoadingSpinner /> : (
+                <>
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Manajemen Mata Pelajaran</h2>
+                        <button
+                            onClick={() => openModal('add')}
+                            className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 flex items-center space-x-2 hover:scale-105"
+                        >
+                            <Icon>{ICONS.plus}</Icon>
+                            <span>Tambah Mapel</span>
+                        </button>
+                    </div>
 
-            <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700/50">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Kode Mapel</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama Mapel</th>
-                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        {paginatedSubjects.map((subject, index) => (
-                            <tr key={subject.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{subject.code}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{subject.name}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center space-x-2">
-                                    <Tooltip text="Edit">
-                                        <button onClick={() => openModal('edit', subject)} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
-                                            <Icon>{ICONS.pencil}</Icon>
-                                        </button>
-                                    </Tooltip>
-                                    <Tooltip text="Hapus">
-                                        <button onClick={() => handleDelete(subject.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
-                                           <Icon>{ICONS.trash}</Icon>
-                                        </button>
-                                    </Tooltip>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-             <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700/50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Kode Mapel</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama Mapel</th>
+                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                {paginatedSubjects.map((subject, index) => (
+                                    <tr key={subject.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{subject.code}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{subject.name}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center space-x-2">
+                                            <Tooltip text="Edit">
+                                                <button onClick={() => openModal('edit', subject)} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-125">
+                                                    <Icon>{ICONS.pencil}</Icon>
+                                                </button>
+                                            </Tooltip>
+                                            <Tooltip text="Hapus">
+                                                <button onClick={() => setSubjectToDelete(subject.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-125">
+                                                   <Icon>{ICONS.trash}</Icon>
+                                                </button>
+                                            </Tooltip>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                     <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+                </>
+            )}
             
             <Modal
                 isOpen={isModalOpen}
@@ -985,14 +1081,22 @@ const SubjectManagementPage = ({ subjects, setSubjects }: { subjects: Subject[],
                 <div className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Kode Mata Pelajaran</label>
-                        <input type="text" name="code" value={currentSubject.code || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
+                        <input type="text" name="code" value={currentSubject.code || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200" required />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Mata Pelajaran</label>
-                        <input type="text" name="name" value={currentSubject.name || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
+                        <input type="text" name="name" value={currentSubject.name || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200" required />
                     </div>
                 </div>
             </Modal>
+
+            <ConfirmationModal
+                isOpen={subjectToDelete !== null}
+                onClose={() => setSubjectToDelete(null)}
+                onConfirm={handleDelete}
+                title="Hapus Mata Pelajaran?"
+                message="Apakah Anda yakin ingin menghapus mata pelajaran ini? Data yang terkait mungkin akan terpengaruh."
+            />
         </div>
     );
 };
@@ -1013,6 +1117,13 @@ const SubjectTeacherManagementPage = ({
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
     const [currentAssignment, setCurrentAssignment] = useState<Partial<SubjectTeacher>>({});
+    const [assignmentToDelete, setAssignmentToDelete] = useState<number | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setLoading(false), 500);
+        return () => clearTimeout(timer);
+    }, []);
 
     const openModal = (mode: 'add' | 'edit', assignment: SubjectTeacher | null = null) => {
         setModalMode(mode);
@@ -1058,9 +1169,10 @@ const SubjectTeacherManagementPage = ({
         closeModal();
     };
 
-    const handleDelete = (id: number) => {
-        if (window.confirm('Apakah Anda yakin ingin menghapus data pengajar ini?')) {
-            setAssignments(assignments.filter(a => a.id !== id));
+    const handleDelete = () => {
+        if (assignmentToDelete !== null) {
+            setAssignments(assignments.filter(a => a.id !== assignmentToDelete));
+            setAssignmentToDelete(null);
         }
     };
 
@@ -1075,54 +1187,58 @@ const SubjectTeacherManagementPage = ({
 
     return (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Manajemen Pengajar Mata Pelajaran</h2>
-                <button
-                    onClick={() => openModal('add')}
-                    className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 flex items-center space-x-2"
-                >
-                    <Icon>{ICONS.plus}</Icon>
-                    <span>Tambah Pengajar</span>
-                </button>
-            </div>
+            {loading ? <LoadingSpinner /> : (
+                <>
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Manajemen Pengajar Mata Pelajaran</h2>
+                        <button
+                            onClick={() => openModal('add')}
+                            className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 flex items-center space-x-2 hover:scale-105"
+                        >
+                            <Icon>{ICONS.plus}</Icon>
+                            <span>Tambah Pengajar</span>
+                        </button>
+                    </div>
 
-            <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700/50">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama Guru</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Mata Pelajaran</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Kelas</th>
-                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Jml Pertemuan/Minggu</th>
-                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        {assignments.map((assignment, index) => (
-                            <tr key={assignment.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{getTeacherName(assignment.teacherId)}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{getSubjectName(assignment.subjectId)}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{getClassName(assignment.classId)}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 text-center">{assignment.meetings}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center space-x-2">
-                                    <Tooltip text="Edit">
-                                        <button onClick={() => openModal('edit', assignment)} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
-                                            <Icon>{ICONS.pencil}</Icon>
-                                        </button>
-                                    </Tooltip>
-                                    <Tooltip text="Hapus">
-                                        <button onClick={() => handleDelete(assignment.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
-                                            <Icon>{ICONS.trash}</Icon>
-                                        </button>
-                                    </Tooltip>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700/50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama Guru</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Mata Pelajaran</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Kelas</th>
+                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Jml Pertemuan/Minggu</th>
+                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                {assignments.map((assignment, index) => (
+                                    <tr key={assignment.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{getTeacherName(assignment.teacherId)}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{getSubjectName(assignment.subjectId)}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{getClassName(assignment.classId)}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 text-center">{assignment.meetings}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center space-x-2">
+                                            <Tooltip text="Edit">
+                                                <button onClick={() => openModal('edit', assignment)} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-125">
+                                                    <Icon>{ICONS.pencil}</Icon>
+                                                </button>
+                                            </Tooltip>
+                                            <Tooltip text="Hapus">
+                                                <button onClick={() => setAssignmentToDelete(assignment.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-125">
+                                                    <Icon>{ICONS.trash}</Icon>
+                                                </button>
+                                            </Tooltip>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </>
+            )}
 
             <Modal
                 isOpen={isModalOpen}
@@ -1134,28 +1250,36 @@ const SubjectTeacherManagementPage = ({
                  <div className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Guru</label>
-                        <select name="teacherId" value={currentAssignment.teacherId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <select name="teacherId" value={currentAssignment.teacherId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200">
                             {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                         </select>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Mata Pelajaran</label>
-                        <select name="subjectId" value={currentAssignment.subjectId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <select name="subjectId" value={currentAssignment.subjectId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200">
                             {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Kelas</label>
-                        <select name="classId" value={currentAssignment.classId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <select name="classId" value={currentAssignment.classId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200">
                             {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Jumlah Pertemuan per Minggu</label>
-                        <input type="number" name="meetings" min="1" value={currentAssignment.meetings || 1} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                        <input type="number" name="meetings" min="1" value={currentAssignment.meetings || 1} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200" />
                     </div>
                 </div>
             </Modal>
+            
+            <ConfirmationModal
+                isOpen={assignmentToDelete !== null}
+                onClose={() => setAssignmentToDelete(null)}
+                onConfirm={handleDelete}
+                title="Hapus Data Pengajar?"
+                message="Apakah Anda yakin ingin menghapus data pengajar ini?"
+            />
         </div>
     );
 };
@@ -1166,7 +1290,14 @@ const ClassManagementPage = ({ classes, setClasses, teachers }: { classes: Class
     const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
     const [currentClass, setCurrentClass] = useState<Partial<Class>>({});
     const [currentPage, setCurrentPage] = useState(1);
+    const [classToDelete, setClassToDelete] = useState<number | null>(null);
+    const [loading, setLoading] = useState(true);
     const ITEMS_PER_PAGE = 20;
+
+    useEffect(() => {
+        const timer = setTimeout(() => setLoading(false), 500);
+        return () => clearTimeout(timer);
+    }, []);
 
     const paginatedClasses = useMemo(() => {
         return classes.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -1199,12 +1330,13 @@ const ClassManagementPage = ({ classes, setClasses, teachers }: { classes: Class
         closeModal();
     };
 
-    const handleDelete = (id: number) => {
-        if (window.confirm("Apakah Anda yakin ingin menghapus kelas ini?")) {
-            setClasses(classes.filter(c => c.id !== id));
+    const handleDelete = () => {
+        if (classToDelete !== null) {
+            setClasses(classes.filter(c => c.id !== classToDelete));
             if (paginatedClasses.length === 1 && currentPage > 1) {
                 setCurrentPage(currentPage - 1);
             }
+            setClassToDelete(null);
         }
     };
     
@@ -1219,53 +1351,57 @@ const ClassManagementPage = ({ classes, setClasses, teachers }: { classes: Class
 
     return (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Manajemen Kelas</h2>
-                <button
-                    onClick={() => openModal('add')}
-                    className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 flex items-center space-x-2"
-                >
-                    <Icon>{ICONS.plus}</Icon>
-                    <span>Tambah Kelas</span>
-                </button>
-            </div>
+            {loading ? <LoadingSpinner /> : (
+                <>
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Manajemen Kelas</h2>
+                        <button
+                            onClick={() => openModal('add')}
+                            className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 flex items-center space-x-2 hover:scale-105"
+                        >
+                            <Icon>{ICONS.plus}</Icon>
+                            <span>Tambah Kelas</span>
+                        </button>
+                    </div>
 
-            <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700/50">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Kode Kelas</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama Kelas</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Wali Kelas</th>
-                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        {paginatedClasses.map((cls, index) => (
-                            <tr key={cls.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{cls.code}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{cls.name}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{getTeacherName(cls.homeroomTeacherId)}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center space-x-2">
-                                    <Tooltip text="Edit">
-                                        <button onClick={() => openModal('edit', cls)} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
-                                            <Icon>{ICONS.pencil}</Icon>
-                                        </button>
-                                    </Tooltip>
-                                    <Tooltip text="Hapus">
-                                        <button onClick={() => handleDelete(cls.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
-                                           <Icon>{ICONS.trash}</Icon>
-                                        </button>
-                                    </Tooltip>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700/50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Kode Kelas</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama Kelas</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Wali Kelas</th>
+                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                {paginatedClasses.map((cls, index) => (
+                                    <tr key={cls.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{cls.code}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{cls.name}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{getTeacherName(cls.homeroomTeacherId)}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center space-x-2">
+                                            <Tooltip text="Edit">
+                                                <button onClick={() => openModal('edit', cls)} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-125">
+                                                    <Icon>{ICONS.pencil}</Icon>
+                                                </button>
+                                            </Tooltip>
+                                            <Tooltip text="Hapus">
+                                                <button onClick={() => setClassToDelete(cls.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-125">
+                                                   <Icon>{ICONS.trash}</Icon>
+                                                </button>
+                                            </Tooltip>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+                </>
+            )}
 
             <Modal
                 isOpen={isModalOpen}
@@ -1277,15 +1413,15 @@ const ClassManagementPage = ({ classes, setClasses, teachers }: { classes: Class
                 <div className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Kode Kelas</label>
-                        <input type="text" name="code" value={currentClass.code || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                        <input type="text" name="code" value={currentClass.code || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200" />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Kelas</label>
-                        <input type="text" name="name" value={currentClass.name || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                        <input type="text" name="name" value={currentClass.name || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200" />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Wali Kelas</label>
-                        <select name="homeroomTeacherId" value={currentClass.homeroomTeacherId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <select name="homeroomTeacherId" value={currentClass.homeroomTeacherId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200">
                             {teachers.map(teacher => (
                                 <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
                             ))}
@@ -1293,6 +1429,14 @@ const ClassManagementPage = ({ classes, setClasses, teachers }: { classes: Class
                     </div>
                 </div>
             </Modal>
+            
+            <ConfirmationModal
+                isOpen={classToDelete !== null}
+                onClose={() => setClassToDelete(null)}
+                onConfirm={handleDelete}
+                title="Hapus Kelas?"
+                message="Apakah Anda yakin ingin menghapus kelas ini? Semua data siswa yang terkait dengan kelas ini perlu diperbarui."
+            />
         </div>
     );
 };
@@ -1354,7 +1498,7 @@ const StudentAttendanceInputPage = ({ students, classes, teachers }: { students:
         resetForm();
     }, [resetForm]);
 
-    const formInputClass = "mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white transition-shadow";
+    const formInputClass = "mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white transition-all duration-200";
     const selectedClassName = useMemo(() => classes.find(c => c.id === parseInt(selectedClassId, 10))?.name, [selectedClassId, classes]);
 
     return (
@@ -1371,7 +1515,7 @@ const StudentAttendanceInputPage = ({ students, classes, teachers }: { students:
                     </div>
                 </div>
 
-                <div className={`transition-all duration-500 ease-in-out overflow-hidden ${attendanceDate ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                <div className={`transition-all duration-500 ease-in-out overflow-hidden ${attendanceDate ? 'max-h-[500px] opacity-100 mt-6' : 'max-h-0 opacity-0'}`}>
                      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                         <h3 className="text-lg font-semibold mb-4 dark:text-gray-100 flex items-center space-x-3">
                             <span className={`flex items-center justify-center w-8 h-8 rounded-full font-bold transition-colors ${selectedClassId ? 'bg-primary-600 text-white' : 'bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-gray-200'}`}>2</span>
@@ -1387,7 +1531,7 @@ const StudentAttendanceInputPage = ({ students, classes, teachers }: { students:
                     </div>
                 </div>
 
-                <div className={`transition-all duration-700 ease-in-out overflow-hidden ${selectedClassId ? 'max-h-[3000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                <div className={`transition-all duration-700 ease-in-out overflow-hidden ${selectedClassId ? 'max-h-[3000px] opacity-100 mt-6' : 'max-h-0 opacity-0'}`}>
                     <div className="space-y-6">
                         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                             <h3 className="text-lg font-semibold mb-4 dark:text-gray-100 flex items-center space-x-3">
@@ -1413,7 +1557,7 @@ const StudentAttendanceInputPage = ({ students, classes, teachers }: { students:
                                                         aria-label={`Status kehadiran untuk ${student.name}`}
                                                         value={attendance[student.id] || AttendanceStatus.Hadir}
                                                         onChange={(e) => handleAttendanceChange(student.id, e.target.value)}
-                                                        className="block w-24 mx-auto border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-shadow"
+                                                        className="block w-24 mx-auto border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200"
                                                     >
                                                         {Object.values(AttendanceStatus).map(status => (
                                                             <option key={status} value={status}>{status}</option>
@@ -1440,7 +1584,7 @@ const StudentAttendanceInputPage = ({ students, classes, teachers }: { students:
                              </div>
                         </div>
                          <div className="flex justify-end">
-                            <button type="submit" className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-6 rounded focus:outline-none focus:shadow-outline transition-transform duration-200 hover:scale-105">
+                            <button type="submit" className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-6 rounded focus:outline-none focus:shadow-outline transition-all duration-200 hover:scale-105">
                                 Simpan Kehadiran
                             </button>
                         </div>
@@ -1463,7 +1607,14 @@ const TeacherManagementPage = ({ teachers, setTeachers }: { teachers: Teacher[],
     const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
     const [currentTeacher, setCurrentTeacher] = useState<Partial<Teacher>>({});
     const [currentPage, setCurrentPage] = useState(1);
+    const [teacherToDelete, setTeacherToDelete] = useState<number | null>(null);
+    const [loading, setLoading] = useState(true);
     const ITEMS_PER_PAGE = 20;
+    
+    useEffect(() => {
+        const timer = setTimeout(() => setLoading(false), 500);
+        return () => clearTimeout(timer);
+    }, []);
 
     const paginatedTeachers = useMemo(() => {
         return teachers.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -1501,12 +1652,13 @@ const TeacherManagementPage = ({ teachers, setTeachers }: { teachers: Teacher[],
         closeModal();
     };
 
-    const handleDelete = (id: number) => {
-        if (window.confirm("Apakah Anda yakin ingin menghapus data guru ini?")) {
-            setTeachers(teachers.filter(t => t.id !== id));
+    const handleDelete = () => {
+        if (teacherToDelete !== null) {
+            setTeachers(teachers.filter(t => t.id !== teacherToDelete));
             if (paginatedTeachers.length === 1 && currentPage > 1) {
                 setCurrentPage(currentPage - 1);
             }
+            setTeacherToDelete(null);
         }
     };
     
@@ -1523,55 +1675,59 @@ const TeacherManagementPage = ({ teachers, setTeachers }: { teachers: Teacher[],
 
     return (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Manajemen Data Guru</h2>
-                <button
-                    onClick={() => openModal('add')}
-                    className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 flex items-center space-x-2"
-                >
-                    <Icon>{ICONS.plus}</Icon>
-                    <span>Tambah Guru</span>
-                </button>
-            </div>
+            {loading ? <LoadingSpinner /> : (
+                <>
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Manajemen Data Guru</h2>
+                        <button
+                            onClick={() => openModal('add')}
+                            className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 flex items-center space-x-2 hover:scale-105"
+                        >
+                            <Icon>{ICONS.plus}</Icon>
+                            <span>Tambah Guru</span>
+                        </button>
+                    </div>
 
-            <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700/50">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Jenis Kelamin</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">NIP</th>
-                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        {paginatedTeachers.map((teacher, index) => (
-                            <tr key={teacher.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{teacher.name}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{teacher.gender}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{teacher.status}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{teacher.nip || '-'}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center space-x-2">
-                                    <Tooltip text="Edit">
-                                        <button onClick={() => openModal('edit', teacher)} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
-                                            <Icon>{ICONS.pencil}</Icon>
-                                        </button>
-                                    </Tooltip>
-                                    <Tooltip text="Hapus">
-                                        <button onClick={() => handleDelete(teacher.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
-                                           <Icon>{ICONS.trash}</Icon>
-                                        </button>
-                                    </Tooltip>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700/50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Jenis Kelamin</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">NIP</th>
+                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                {paginatedTeachers.map((teacher, index) => (
+                                    <tr key={teacher.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{teacher.name}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{teacher.gender}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{teacher.status}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{teacher.nip || '-'}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center space-x-2">
+                                            <Tooltip text="Edit">
+                                                <button onClick={() => openModal('edit', teacher)} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-125">
+                                                    <Icon>{ICONS.pencil}</Icon>
+                                                </button>
+                                            </Tooltip>
+                                            <Tooltip text="Hapus">
+                                                <button onClick={() => setTeacherToDelete(teacher.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-125">
+                                                   <Icon>{ICONS.trash}</Icon>
+                                                </button>
+                                            </Tooltip>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+                </>
+            )}
 
             <Modal
                 isOpen={isModalOpen}
@@ -1583,11 +1739,11 @@ const TeacherManagementPage = ({ teachers, setTeachers }: { teachers: Teacher[],
                 <div className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Lengkap</label>
-                        <input type="text" name="name" value={currentTeacher.name || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
+                        <input type="text" name="name" value={currentTeacher.name || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200" required />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Jenis Kelamin</label>
-                        <select name="gender" value={currentTeacher.gender || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <select name="gender" value={currentTeacher.gender || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200">
                             {Object.values(Gender).map(g => (
                                 <option key={g} value={g}>{g}</option>
                             ))}
@@ -1595,7 +1751,7 @@ const TeacherManagementPage = ({ teachers, setTeachers }: { teachers: Teacher[],
                     </div>
                      <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Status Kepegawaian</label>
-                        <select name="status" value={currentTeacher.status || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <select name="status" value={currentTeacher.status || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200">
                             {Object.values(TeacherStatus).map(s => (
                                 <option key={s} value={s}>{s}</option>
                             ))}
@@ -1604,11 +1760,19 @@ const TeacherManagementPage = ({ teachers, setTeachers }: { teachers: Teacher[],
                     {currentTeacher.status === TeacherStatus.ASN && (
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">NIP (Nomor Induk Pegawai)</label>
-                            <input type="text" name="nip" value={currentTeacher.nip || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
+                            <input type="text" name="nip" value={currentTeacher.nip || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200" required />
                         </div>
                     )}
                 </div>
             </Modal>
+
+            <ConfirmationModal
+                isOpen={teacherToDelete !== null}
+                onClose={() => setTeacherToDelete(null)}
+                onConfirm={handleDelete}
+                title="Hapus Data Guru?"
+                message="Apakah Anda yakin ingin menghapus data guru ini? Semua data pengajaran yang terkait dengan guru ini akan terhapus."
+            />
         </div>
     );
 };
@@ -1619,7 +1783,14 @@ const StudentManagementPage = ({ students, setStudents, classes }: { students: S
     const [currentStudent, setCurrentStudent] = useState<Partial<Student>>({});
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [currentPage, setCurrentPage] = useState(1);
+    const [studentToDelete, setStudentToDelete] = useState<number | null>(null);
+    const [loading, setLoading] = useState(true);
     const ITEMS_PER_PAGE = 20;
+    
+    useEffect(() => {
+        const timer = setTimeout(() => setLoading(false), 500);
+        return () => clearTimeout(timer);
+    }, []);
 
     const paginatedStudents = useMemo(() => {
         return students.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -1659,12 +1830,13 @@ const StudentManagementPage = ({ students, setStudents, classes }: { students: S
         closeModal();
     };
 
-    const handleDelete = (id: number) => {
-        if (window.confirm("Apakah Anda yakin ingin menghapus data siswa ini?")) {
-            setStudents(students.filter(s => s.id !== id));
+    const handleDelete = () => {
+        if (studentToDelete !== null) {
+            setStudents(students.filter(s => s.id !== studentToDelete));
             if (paginatedStudents.length === 1 && currentPage > 1) {
                 setCurrentPage(currentPage - 1);
             }
+            setStudentToDelete(null);
         }
     };
     
@@ -1691,71 +1863,75 @@ const StudentManagementPage = ({ students, setStudents, classes }: { students: S
 
     return (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Manajemen Data Siswa</h2>
-                <button
-                    onClick={() => openModal('add')}
-                    className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 flex items-center space-x-2"
-                >
-                    <Icon>{ICONS.plus}</Icon>
-                    <span>Tambah Siswa</span>
-                </button>
-            </div>
+            {loading ? <LoadingSpinner /> : (
+                <>
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Manajemen Data Siswa</h2>
+                        <button
+                            onClick={() => openModal('add')}
+                            className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 flex items-center space-x-2 hover:scale-105"
+                        >
+                            <Icon>{ICONS.plus}</Icon>
+                            <span>Tambah Siswa</span>
+                        </button>
+                    </div>
 
-            <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700/50">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Siswa</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Kelas</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Jenis Kelamin</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tgl Masuk</th>
-                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        {paginatedStudents.map((student, index) => (
-                            <tr key={student.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                                    <div className="flex items-center">
-                                        <div className="flex-shrink-0 h-10 w-10">
-                                            <img className="h-10 w-10 rounded-full object-cover" src={student.photo || `https://ui-avatars.com/api/?name=${student.name.replace(/\s/g, '+')}&background=random`} alt={student.name} />
-                                        </div>
-                                        <div className="ml-4">
-                                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{student.name}</div>
-                                            <div className="text-sm text-gray-500 dark:text-gray-400">NISN: {student.nisn}</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{getClassName(student.classId)}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{student.gender}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${student.status === StudentStatus.New || student.status === StudentStatus.Transfer ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200'}`}>
-                                        {student.status}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{student.entryDate}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center space-x-2">
-                                    <Tooltip text="Edit">
-                                        <button onClick={() => openModal('edit', student)} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
-                                            <Icon>{ICONS.pencil}</Icon>
-                                        </button>
-                                    </Tooltip>
-                                    <Tooltip text="Hapus">
-                                        <button onClick={() => handleDelete(student.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
-                                           <Icon>{ICONS.trash}</Icon>
-                                        </button>
-                                    </Tooltip>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700/50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Siswa</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Kelas</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Jenis Kelamin</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tgl Masuk</th>
+                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                {paginatedStudents.map((student, index) => (
+                                    <tr key={student.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                                            <div className="flex items-center">
+                                                <div className="flex-shrink-0 h-10 w-10">
+                                                    <img className="h-10 w-10 rounded-full object-cover" src={student.photo || `https://ui-avatars.com/api/?name=${student.name.replace(/\s/g, '+')}&background=random`} alt={student.name} />
+                                                </div>
+                                                <div className="ml-4">
+                                                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{student.name}</div>
+                                                    <div className="text-sm text-gray-500 dark:text-gray-400">NISN: {student.nisn}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{getClassName(student.classId)}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{student.gender}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${student.status === StudentStatus.New || student.status === StudentStatus.Transfer ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200'}`}>
+                                                {student.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{student.entryDate}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center space-x-2">
+                                            <Tooltip text="Edit">
+                                                <button onClick={() => openModal('edit', student)} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-125">
+                                                    <Icon>{ICONS.pencil}</Icon>
+                                                </button>
+                                            </Tooltip>
+                                            <Tooltip text="Hapus">
+                                                <button onClick={() => setStudentToDelete(student.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-125">
+                                                   <Icon>{ICONS.trash}</Icon>
+                                                </button>
+                                            </Tooltip>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+                </>
+            )}
 
             <Modal
                 isOpen={isModalOpen}
@@ -1766,33 +1942,33 @@ const StudentManagementPage = ({ students, setStudents, classes }: { students: S
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">NISN</label>
-                        <input type="text" name="nisn" value={currentStudent.nisn || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
+                        <input type="text" name="nisn" value={currentStudent.nisn || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200" required />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Lengkap</label>
-                        <input type="text" name="name" value={currentStudent.name || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
+                        <input type="text" name="name" value={currentStudent.name || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200" required />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Jenis Kelamin</label>
-                        <select name="gender" value={currentStudent.gender || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <select name="gender" value={currentStudent.gender || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200">
                             {Object.values(Gender).map(g => (<option key={g} value={g}>{g}</option>))}
                         </select>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Kelas</label>
-                        <select name="classId" value={currentStudent.classId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required>
+                        <select name="classId" value={currentStudent.classId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200" required>
                             {classes.map(c => (<option key={c.id} value={c.id}>{c.name}</option>))}
                         </select>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Status Siswa</label>
-                        <select name="status" value={currentStudent.status || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <select name="status" value={currentStudent.status || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200">
                             {Object.values(StudentStatus).map(s => (<option key={s} value={s}>{s}</option>))}
                         </select>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Masuk</label>
-                        <input type="date" name="entryDate" value={currentStudent.entryDate || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark]" required />
+                        <input type="date" name="entryDate" value={currentStudent.entryDate || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark] transition-all duration-200" required />
                     </div>
                     <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Foto Siswa (Opsional)</label>
@@ -1820,10 +1996,18 @@ const StudentManagementPage = ({ students, setStudents, classes }: { students: S
                     </div>
                     <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">No. WhatsApp (Opsional)</label>
-                        <input type="text" name="whatsapp" value={currentStudent.whatsapp || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="628123456789" />
+                        <input type="text" name="whatsapp" value={currentStudent.whatsapp || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200" placeholder="628123456789" />
                     </div>
                 </div>
             </Modal>
+            
+            <ConfirmationModal
+                isOpen={studentToDelete !== null}
+                onClose={() => setStudentToDelete(null)}
+                onConfirm={handleDelete}
+                title="Hapus Data Siswa?"
+                message="Apakah Anda yakin ingin menghapus data siswa ini? Semua data kehadiran dan riwayat siswa ini akan terhapus secara permanen."
+            />
         </div>
     );
 };
@@ -1837,6 +2021,13 @@ const StudentTransferPage = ({ students, setStudents, transfers, setTransfers }:
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
     const [currentTransfer, setCurrentTransfer] = useState<Partial<StudentTransfer>>({});
+    const [transferToDelete, setTransferToDelete] = useState<number | null>(null);
+    const [loading, setLoading] = useState(true);
+    
+    useEffect(() => {
+        const timer = setTimeout(() => setLoading(false), 500);
+        return () => clearTimeout(timer);
+    }, []);
 
     const availableStudents = useMemo(() => {
         return students.filter(s => s.status !== StudentStatus.Inactive);
@@ -1884,17 +2075,18 @@ const StudentTransferPage = ({ students, setStudents, transfers, setTransfers }:
         closeModal();
     };
 
-    const handleDelete = (transferId: number) => {
-        if (window.confirm("Apakah Anda yakin ingin menghapus data mutasi ini? Tindakan ini akan mengaktifkan kembali status siswa.")) {
-            const transferToDelete = transfers.find(t => t.id === transferId);
-            if (!transferToDelete) return;
+    const handleDelete = () => {
+        if (transferToDelete !== null) {
+            const transferToDeleteData = transfers.find(t => t.id === transferToDelete);
+            if (!transferToDeleteData) return;
 
-            setTransfers(prev => prev.filter(t => t.id !== transferId));
+            setTransfers(prev => prev.filter(t => t.id !== transferToDelete));
             setStudents(prev => prev.map(s => 
-                s.id === transferToDelete.studentId 
+                s.id === transferToDeleteData.studentId 
                 ? { ...s, status: StudentStatus.New, exitDate: undefined } 
                 : s
             ));
+            setTransferToDelete(null);
         }
     };
     
@@ -1909,54 +2101,58 @@ const StudentTransferPage = ({ students, setStudents, transfers, setTransfers }:
 
     return (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Manajemen Mutasi Siswa</h2>
-                <button
-                    onClick={() => openModal('add')}
-                    className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 flex items-center space-x-2"
-                >
-                    <Icon>{ICONS.plus}</Icon>
-                    <span>Catat Mutasi</span>
-                </button>
-            </div>
+            {loading ? <LoadingSpinner /> : (
+                <>
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Manajemen Mutasi Siswa</h2>
+                        <button
+                            onClick={() => openModal('add')}
+                            className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 flex items-center space-x-2 hover:scale-105"
+                        >
+                            <Icon>{ICONS.plus}</Icon>
+                            <span>Catat Mutasi</span>
+                        </button>
+                    </div>
 
-            <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700/50">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama Siswa</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tanggal Keluar</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Alasan</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Catatan</th>
-                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        {transfers.map((transfer, index) => (
-                            <tr key={transfer.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{getStudentName(transfer.studentId)}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{transfer.exitDate}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{transfer.reason}</td>
-                                <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-300">{transfer.notes || '-'}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center space-x-2">
-                                    <Tooltip text="Edit">
-                                        <button onClick={() => openModal('edit', transfer)} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
-                                            <Icon>{ICONS.pencil}</Icon>
-                                        </button>
-                                    </Tooltip>
-                                    <Tooltip text="Hapus">
-                                        <button onClick={() => handleDelete(transfer.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
-                                           <Icon>{ICONS.trash}</Icon>
-                                        </button>
-                                    </Tooltip>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700/50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama Siswa</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tanggal Keluar</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Alasan</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Catatan</th>
+                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                {transfers.map((transfer, index) => (
+                                    <tr key={transfer.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{getStudentName(transfer.studentId)}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{transfer.exitDate}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{transfer.reason}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-300">{transfer.notes || '-'}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center space-x-2">
+                                            <Tooltip text="Edit">
+                                                <button onClick={() => openModal('edit', transfer)} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-125">
+                                                    <Icon>{ICONS.pencil}</Icon>
+                                                </button>
+                                            </Tooltip>
+                                            <Tooltip text="Hapus">
+                                                <button onClick={() => setTransferToDelete(transfer.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-125">
+                                                   <Icon>{ICONS.trash}</Icon>
+                                                </button>
+                                            </Tooltip>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </>
+            )}
 
             <Modal
                 isOpen={isModalOpen}
@@ -1968,7 +2164,7 @@ const StudentTransferPage = ({ students, setStudents, transfers, setTransfers }:
                 <div className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Siswa</label>
-                        <select name="studentId" value={currentTransfer.studentId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" disabled={modalMode==='edit'}>
+                        <select name="studentId" value={currentTransfer.studentId || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200" disabled={modalMode==='edit'}>
                             {modalMode === 'edit' ? 
                                 <option value={currentTransfer.studentId}>{getStudentName(currentTransfer.studentId!)}</option>
                                 : availableStudents.map(s => (<option key={s.id} value={s.id}>{s.name} (NISN: {s.nisn})</option>))
@@ -1977,20 +2173,33 @@ const StudentTransferPage = ({ students, setStudents, transfers, setTransfers }:
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Keluar</label>
-                        <input type="date" name="exitDate" value={currentTransfer.exitDate || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark]" required />
+                        <input type="date" name="exitDate" value={currentTransfer.exitDate || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark] transition-all duration-200" required />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Alasan</label>
-                        <select name="reason" value={currentTransfer.reason || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <select name="reason" value={currentTransfer.reason || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200">
                             {Object.values(TransferReason).map(r => (<option key={r} value={r}>{r}</option>))}
                         </select>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Catatan (Opsional)</label>
-                        <textarea name="notes" value={currentTransfer.notes || ''} onChange={handleFormChange} rows={3} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></textarea>
+                        <textarea name="notes" value={currentTransfer.notes || ''} onChange={handleFormChange} rows={3} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200"></textarea>
                     </div>
                 </div>
             </Modal>
+
+            <ConfirmationModal
+                isOpen={transferToDelete !== null}
+                onClose={() => setTransferToDelete(null)}
+                onConfirm={handleDelete}
+                title="Hapus Data Mutasi?"
+                message={
+                    <span>
+                        Apakah Anda yakin ingin menghapus data mutasi ini? <br />
+                        <strong className="font-semibold text-red-700 dark:text-red-300">Tindakan ini akan mengaktifkan kembali status siswa menjadi "Siswa Baru".</strong>
+                    </span>
+                }
+            />
         </div>
     );
 };
@@ -2085,22 +2294,22 @@ const RekapKehadiranSiswaPage = ({ students, classes, attendanceRecords }: {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Mulai</label>
-                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark]" />
+                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark] transition-all duration-200" />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Selesai</label>
-                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark]" />
+                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark] transition-all duration-200" />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Kelas</label>
-                        <select value={selectedClassId} onChange={e => setSelectedClassId(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <select value={selectedClassId} onChange={e => setSelectedClassId(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200">
                             <option value="all">Semua Kelas</option>
                             {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                     </div>
                      <div className="flex space-x-2">
-                        <button onClick={setThisWeek} className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200">Minggu Ini</button>
-                        <button onClick={setThisMonth} className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200">Bulan Ini</button>
+                        <button onClick={setThisWeek} className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200 hover:scale-105">Minggu Ini</button>
+                        <button onClick={setThisMonth} className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200 hover:scale-105">Bulan Ini</button>
                     </div>
                 </div>
             </div>
@@ -2110,7 +2319,7 @@ const RekapKehadiranSiswaPage = ({ students, classes, attendanceRecords }: {
                     <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Hasil Rekapitulasi</h2>
                     <button
                         onClick={handleExport}
-                        className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 flex items-center space-x-2"
+                        className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 flex items-center space-x-2 hover:scale-105"
                     >
                         <Icon>{ICONS.download}</Icon>
                         <span>Export ke Excel</span>
@@ -2330,22 +2539,22 @@ const RekapKehadiranGuruPage = ({ teachers, subjectTeachers, attendanceRecords }
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Mulai</label>
-                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark]" />
+                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark] transition-all duration-200" />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Selesai</label>
-                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark]" />
+                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:[color-scheme:dark] transition-all duration-200" />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Guru</label>
-                        <select value={selectedTeacherId} onChange={e => setSelectedTeacherId(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <select value={selectedTeacherId} onChange={e => setSelectedTeacherId(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200">
                             <option value="all">Semua Guru</option>
                             {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                         </select>
                     </div>
                      <div className="flex space-x-2">
-                        <button onClick={setThisWeek} className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200">Minggu Ini</button>
-                        <button onClick={setThisMonth} className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200">Bulan Ini</button>
+                        <button onClick={setThisWeek} className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200 hover:scale-105">Minggu Ini</button>
+                        <button onClick={setThisMonth} className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200 hover:scale-105">Bulan Ini</button>
                     </div>
                 </div>
             </div>
@@ -2355,7 +2564,7 @@ const RekapKehadiranGuruPage = ({ teachers, subjectTeachers, attendanceRecords }
                     <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Grafik & Rincian Kehadiran Guru</h2>
                     <button
                         onClick={handleExport}
-                        className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-200 flex items-center space-x-2"
+                        className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 flex items-center space-x-2 hover:scale-105"
                     >
                         <Icon>{ICONS.download}</Icon>
                         <span>Export ke Excel</span>
