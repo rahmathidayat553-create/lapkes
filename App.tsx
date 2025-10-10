@@ -112,6 +112,7 @@ const initialTeacherAttendance: TeacherAttendance[] = [
     { id: 8, teacherId: 3, subjectId: 3, classId: 2, date: getISODate(0), meetings: 3 }, // present today
 ];
 
+type SyncStatus = 'idle' | 'pending' | 'syncing' | 'failed';
 
 // --- ICONS (Heroicons SVG paths) ---
 const ICONS = {
@@ -129,7 +130,12 @@ const ICONS = {
   pencil: <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />,
   trash: <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />,
   download: <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />,
+  upload: <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />,
   warning: <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />,
+  'wifi-off': <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18M11.25 4.533A10.5 10.5 0 0 1 12 4.5c4.782 0 8.943 2.553 11.25 6.543m-2.25-2.25-1.39-1.39m-11.454 0L1.5 9.75M8.25 12l-1.423 1.423" />,
+  'check-circle': <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />,
+  'clock': <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />,
+  'arrow-path': <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0011.667 0l3.181-3.183m-4.991-2.695v-2.257a2.25 2.25 0 00-2.25-2.25H12.25a2.25 2.25 0 00-2.25 2.25v2.257m12.138 2.695L15.817 17.07a8.25 8.25 0 01-11.667 0L2.985 15.817" />,
 };
 
 // FIX: Changed prop types to use React.PropsWithChildren to resolve errors about missing 'children' prop.
@@ -141,6 +147,52 @@ function Icon({ children, className = "w-6 h-6" }: IconProps) {
         </svg>
     );
 }
+
+// --- CUSTOM HOOKS for Offline Mode ---
+
+// Hook to persist state in localStorage
+function usePersistentState<T>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
+    const [state, setState] = useState<T>(() => {
+        try {
+            const item = window.localStorage.getItem(key);
+            return item ? JSON.parse(item) : initialValue;
+        } catch (error) {
+            console.error(`Error reading localStorage key "${key}":`, error);
+            return initialValue;
+        }
+    });
+
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(key, JSON.stringify(state));
+        } catch (error) {
+            console.error(`Error setting localStorage key "${key}":`, error);
+        }
+    }, [key, state]);
+
+    return [state, setState];
+}
+
+// Hook to track online/offline status
+const useOnlineStatus = () => {
+    const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+    useEffect(() => {
+        const handleOnline = () => setIsOnline(true);
+        const handleOffline = () => setIsOnline(false);
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
+
+    return isOnline;
+};
+
 
 // --- THEME CONTEXT ---
 const ThemeContext = createContext<{ theme: string; toggleTheme: () => void; }>({
@@ -210,10 +262,10 @@ const useAuth = () => useContext(AuthContext);
 // --- COMPONENTS ---
 
 // --- Loading Spinner Component ---
-function LoadingSpinner() {
+function LoadingSpinner({ size = 'h-16 w-16' }: { size?: string }) {
     return (
-        <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary-500"></div>
+        <div className={`flex justify-center items-center h-full`}>
+            <div className={`animate-spin rounded-full ${size} border-t-2 border-b-2 border-primary-500`}></div>
         </div>
     );
 }
@@ -464,6 +516,226 @@ function ConfirmationModal({ isOpen, onClose, onConfirm, title, message }: Confi
     );
 }
 
+// --- Import Student Modal Component ---
+type ImportStudentModalProps = {
+    isOpen: boolean;
+    onClose: () => void;
+    onImport: (students: Student[]) => void;
+    onImportSuccess: (count: number) => void;
+    students: Student[];
+    classes: Class[];
+};
+
+function ImportStudentModal({ isOpen, onClose, onImport, onImportSuccess, students, classes }: ImportStudentModalProps) {
+    const titleId = "import-student-modal-title";
+    const [file, setFile] = useState<File | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileChange = (selectedFile: File | null) => {
+        if (selectedFile) {
+            if (selectedFile.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || selectedFile.type === 'application/vnd.ms-excel') {
+                setFile(selectedFile);
+                setError(null);
+            } else {
+                setError("Format file tidak valid. Harap unggah file Excel (.xlsx).");
+            }
+        }
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            handleFileChange(e.dataTransfer.files[0]);
+        }
+    };
+
+    const handleRemoveFile = () => {
+        setFile(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+    };
+
+    const processImport = () => {
+        if (!file) {
+            setError("Silakan pilih file untuk diimpor.");
+            return;
+        }
+
+        setIsProcessing(true);
+        setError(null);
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target?.result as ArrayBuffer);
+                const workbook = (window as any).XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const jsonData: any[] = (window as any).XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+                const headers = jsonData[0];
+                const requiredHeaders = ['nisn', 'name', 'gender', 'status', 'entryDate', 'className'];
+                const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+
+                if (missingHeaders.length > 0) {
+                    throw new Error(`Kolom berikut tidak ditemukan: ${missingHeaders.join(', ')}`);
+                }
+
+                const rows = jsonData.slice(1);
+                const newStudents: Student[] = [];
+                const classMap = new Map(classes.map(c => [c.name.toLowerCase(), c.id]));
+                const existingNisns = new Set(students.map(s => s.nisn));
+
+                for (let i = 0; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (row.length === 0) continue; // Skip empty rows
+                    const rowData: any = {};
+                    headers.forEach((header: string, index: number) => {
+                        rowData[header] = row[index];
+                    });
+
+                    const { nisn, name, gender, status, entryDate, className, whatsapp } = rowData;
+                    
+                    if (!nisn || !name || !gender || !status || !entryDate || !className) {
+                         throw new Error(`Data tidak lengkap pada baris ${i + 2}. Semua kolom wajib diisi.`);
+                    }
+                    if (existingNisns.has(String(nisn))) {
+                        throw new Error(`NISN '${nisn}' pada baris ${i + 2} sudah terdaftar.`);
+                    }
+                    if (!Object.values(Gender).includes(gender)) {
+                        throw new Error(`Nilai gender '${gender}' pada baris ${i + 2} tidak valid.`);
+                    }
+                    if (!Object.values(StudentStatus).includes(status)) {
+                        throw new Error(`Nilai status '${status}' pada baris ${i + 2} tidak valid.`);
+                    }
+
+                    const classId = classMap.get(String(className).toLowerCase());
+                    if (!classId) {
+                        throw new Error(`Nama kelas '${className}' pada baris ${i + 2} tidak ditemukan.`);
+                    }
+                    
+                    let formattedDate = entryDate;
+                    if (typeof entryDate === 'number') { // Handle Excel date serial number
+                        const excelEpoch = new Date(1899, 11, 30);
+                        const jsDate = new Date(excelEpoch.getTime() + entryDate * 86400000);
+                        formattedDate = jsDate.toISOString().split('T')[0];
+                    } else if (!/^\d{4}-\d{2}-\d{2}$/.test(entryDate)) {
+                        throw new Error(`Format tanggal '${entryDate}' pada baris ${i + 2} tidak valid. Gunakan format YYYY-MM-DD.`);
+                    }
+
+                    newStudents.push({
+                        id: Date.now() + i,
+                        nisn: String(nisn),
+                        name,
+                        gender,
+                        status,
+                        entryDate: formattedDate,
+                        classId,
+                        whatsapp: whatsapp ? String(whatsapp) : undefined,
+                    });
+                }
+                
+                onImport(newStudents);
+                onImportSuccess(newStudents.length);
+                handleClose();
+            } catch (err: any) {
+                setError(err.message || "Terjadi kesalahan saat memproses file.");
+            } finally {
+                setIsProcessing(false);
+            }
+        };
+        reader.onerror = () => {
+            setError("Gagal membaca file.");
+            setIsProcessing(false);
+        };
+        reader.readAsArrayBuffer(file);
+    };
+
+    const handleClose = () => {
+        setFile(null);
+        setError(null);
+        setIsProcessing(false);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+        onClose();
+    };
+
+    return (
+        <BaseModal isOpen={isOpen} onClose={handleClose} titleId={titleId} maxWidth="max-w-xl">
+            <div className="p-6">
+                <h3 id={titleId} className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                    Import Data Siswa
+                </h3>
+            </div>
+            <div className="p-6 pt-0">
+                {!file ? (
+                    <div
+                        onDragOver={handleDragOver}
+                        onDrop={handleDrop}
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex justify-center items-center w-full px-6 py-12 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-md cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    >
+                        <div className="text-center">
+                            <Icon className="mx-auto h-12 w-12 text-gray-400">{ICONS.upload}</Icon>
+                            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                                <span className="font-semibold text-primary-600 dark:text-primary-400">Pilih file</span> atau seret dan lepas di sini
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-500">Hanya file .xlsx yang didukung</p>
+                        </div>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            className="hidden"
+                            accept=".xlsx"
+                            onChange={(e) => handleFileChange(e.target.files ? e.target.files[0] : null)}
+                        />
+                    </div>
+                ) : (
+                    <div className="p-4 border border-gray-200 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700/50 flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{file.name}</span>
+                        <button
+                            onClick={handleRemoveFile}
+                            className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                            aria-label="Hapus file"
+                        >
+                            <Icon className="w-5 h-5">{ICONS.trash}</Icon>
+                        </button>
+                    </div>
+                )}
+                {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
+            </div>
+            <div className="p-6 flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700">
+                <button
+                    type="button"
+                    onClick={handleClose}
+                    className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-gray-200 hover:scale-105"
+                >
+                    Batal
+                </button>
+                <button
+                    type="button"
+                    onClick={processImport}
+                    disabled={!file || isProcessing}
+                    className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 hover:scale-105 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {isProcessing && <LoadingSpinner size="h-5 w-5" />}
+                    <span className={isProcessing ? 'ml-2' : ''}>Proses Import</span>
+                </button>
+            </div>
+        </BaseModal>
+    );
+}
+
 
 function ThemeSwitcher() {
     const { theme, toggleTheme } = useTheme();
@@ -589,14 +861,66 @@ const Sidebar = () => {
     );
 };
 
-const Header = () => {
+const Header = ({ onSyncNow, syncStatus, pendingSyncCount }: {
+    onSyncNow: () => void;
+    syncStatus: SyncStatus;
+    pendingSyncCount: number;
+}) => {
     const location = useLocation();
+    const isOnline = useOnlineStatus();
     const pageTitle = location.pathname.replace(/\//g, ' ').replace(/-/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ').trim() || 'Dashboard';
     
+    const syncInfo = useMemo(() => {
+        switch (syncStatus) {
+            case 'syncing':
+                return { text: 'Menyinkronkan...', icon: ICONS['arrow-path'], color: 'text-blue-500', spin: true, tooltip: `${pendingSyncCount} item sedang disinkronkan...` };
+            case 'pending':
+                 return { text: 'Sinkronisasi Tertunda', icon: ICONS.clock, color: 'text-yellow-500', spin: false, tooltip: `${pendingSyncCount} item menunggu untuk disinkronkan.` };
+            case 'failed':
+                 return { text: 'Sinkronisasi Gagal', icon: ICONS.warning, color: 'text-red-500', spin: false, tooltip: 'Gagal menyinkronkan data. Coba lagi.' };
+            case 'idle':
+                if (pendingSyncCount > 0) { // Should be covered by 'pending' state, but as a fallback
+                    return { text: 'Tertunda', icon: ICONS.clock, color: 'text-yellow-500', spin: false, tooltip: `${pendingSyncCount} item menunggu untuk disinkronkan.` };
+                }
+                return { text: 'Tersinkronisasi', icon: ICONS['check-circle'], color: 'text-green-500', spin: false, tooltip: 'Semua data sudah tersinkronisasi.' };
+        }
+    }, [syncStatus, pendingSyncCount]);
+
     return (
         <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-6">
             <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100">{pageTitle}</h1>
             <div className="flex items-center space-x-4">
+                {!isOnline && (
+                    <Tooltip text="Aplikasi dalam mode offline">
+                        <div className="flex items-center space-x-2 text-yellow-500">
+                            <Icon className="w-5 h-5">{ICONS['wifi-off']}</Icon>
+                            <span className="text-sm font-medium hidden md:block">Offline</span>
+                        </div>
+                    </Tooltip>
+                )}
+
+                <Tooltip text={syncInfo.tooltip}>
+                    <div className={`flex items-center space-x-2 ${syncInfo.color}`}>
+                        <Icon className={`w-5 h-5 ${syncInfo.spin ? 'animate-spin' : ''}`}>{syncInfo.icon}</Icon>
+                        <span className="text-sm font-medium hidden md:block">{syncInfo.text}</span>
+                    </div>
+                </Tooltip>
+
+                {pendingSyncCount > 0 && (
+                    <Tooltip text="Coba sinkronkan data yang tertunda sekarang">
+                        <div>
+                            <button 
+                                onClick={onSyncNow} 
+                                disabled={!isOnline || syncStatus === 'syncing'}
+                                className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                                aria-label="Sinkronkan Sekarang"
+                            >
+                                <Icon className={`w-5 h-5 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`}>{ICONS['arrow-path']}</Icon>
+                            </button>
+                        </div>
+                    </Tooltip>
+                )}
+
                 <ThemeSwitcher />
                 <span className="text-gray-600 dark:text-gray-300">Selamat datang, Admin!</span>
                 <img className="h-10 w-10 rounded-full object-cover" src="https://picsum.photos/100" alt="Admin"/>
@@ -606,14 +930,18 @@ const Header = () => {
 };
 
 // FIX: Changed prop types to use React.PropsWithChildren to resolve errors about missing 'children' prop.
-type LayoutProps = React.PropsWithChildren<{}>;
-function Layout({ children }: LayoutProps) {
+type LayoutProps = React.PropsWithChildren<{
+    onSyncNow: () => void;
+    syncStatus: SyncStatus;
+    pendingSyncCount: number;
+}>;
+function Layout({ children, onSyncNow, syncStatus, pendingSyncCount }: LayoutProps) {
     const location = useLocation();
     return (
         <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
             <Sidebar />
             <div className="flex-1 flex flex-col overflow-hidden">
-                <Header />
+                <Header onSyncNow={onSyncNow} syncStatus={syncStatus} pendingSyncCount={pendingSyncCount} />
                 <main key={location.pathname} className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-gray-900 p-6 animate-fade-in">
                     {children}
                 </main>
@@ -724,8 +1052,12 @@ const SchoolIdentityPage = () => {
     );
 };
 
-const CalendarManagementPage = () => {
-    const [events, setEvents] = useState<CalendarEvent[]>(initialCalendarEvents);
+const CalendarManagementPage = ({ events, onAdd, onUpdate, onDelete }: { 
+    events: CalendarEvent[], 
+    onAdd: (event: Omit<CalendarEvent, 'id'>) => void,
+    onUpdate: (event: CalendarEvent) => void,
+    onDelete: (eventId: number) => void,
+}) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
     const [currentEvent, setCurrentEvent] = useState<Partial<CalendarEvent>>({});
@@ -762,16 +1094,16 @@ const CalendarManagementPage = () => {
         }
 
         if (modalMode === 'add') {
-            setEvents([...events, { ...currentEvent, id: Date.now() } as CalendarEvent]);
+            onAdd(currentEvent as Omit<CalendarEvent, 'id'>);
         } else {
-            setEvents(events.map(ev => ev.id === currentEvent.id ? { ...ev, ...currentEvent } : ev));
+            onUpdate(currentEvent as CalendarEvent);
         }
         closeModal();
     };
 
     const handleDelete = () => {
         if (eventToDelete !== null) {
-            setEvents(events.filter(e => e.id !== eventToDelete));
+            onDelete(eventToDelete);
             setEventToDelete(null);
         }
     };
@@ -959,7 +1291,12 @@ function Pagination({ currentPage, totalPages, onPageChange }: PaginationProps) 
     );
 }
 
-const SubjectManagementPage = ({ subjects, setSubjects }: { subjects: Subject[], setSubjects: React.Dispatch<React.SetStateAction<Subject[]>> }) => {
+const SubjectManagementPage = ({ subjects, onAdd, onUpdate, onDelete }: { 
+    subjects: Subject[],
+    onAdd: (subject: Omit<Subject, 'id'>) => void,
+    onUpdate: (subject: Subject) => void,
+    onDelete: (subjectId: number) => void,
+}) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
     const [currentSubject, setCurrentSubject] = useState<Partial<Subject>>({});
@@ -997,16 +1334,16 @@ const SubjectManagementPage = ({ subjects, setSubjects }: { subjects: Subject[],
         }
 
         if (modalMode === 'add') {
-            setSubjects([...subjects, { ...currentSubject, id: Date.now() } as Subject]);
+            onAdd(currentSubject as Omit<Subject, 'id'>);
         } else {
-            setSubjects(subjects.map(s => s.id === currentSubject.id ? { ...s, ...currentSubject } : s));
+            onUpdate(currentSubject as Subject);
         }
         closeModal();
     };
 
     const handleDelete = () => {
         if (subjectToDelete !== null) {
-            setSubjects(subjects.filter(s => s.id !== subjectToDelete));
+            onDelete(subjectToDelete);
             if (paginatedSubjects.length === 1 && currentPage > 1) {
                 setCurrentPage(currentPage - 1);
             }
@@ -1103,13 +1440,17 @@ const SubjectManagementPage = ({ subjects, setSubjects }: { subjects: Subject[],
 
 const SubjectTeacherManagementPage = ({
     assignments,
-    setAssignments,
+    onAdd,
+    onUpdate,
+    onDelete,
     teachers,
     subjects,
     classes,
 }: {
     assignments: SubjectTeacher[];
-    setAssignments: React.Dispatch<React.SetStateAction<SubjectTeacher[]>>;
+    onAdd: (assignment: Omit<SubjectTeacher, 'id'>) => void,
+    onUpdate: (assignment: SubjectTeacher) => void,
+    onDelete: (assignmentId: number) => void,
     teachers: Teacher[];
     subjects: Subject[];
     classes: Class[];
@@ -1160,18 +1501,16 @@ const SubjectTeacherManagementPage = ({
                 alert('Penugasan guru untuk mata pelajaran dan kelas ini sudah ada.');
                 return;
             }
-            setAssignments([...assignments, { ...currentAssignment, id: Date.now() } as SubjectTeacher]);
+            onAdd(currentAssignment as Omit<SubjectTeacher, 'id'>);
         } else {
-            setAssignments(
-                assignments.map(a => (a.id === currentAssignment.id ? { ...a, ...currentAssignment } : a))
-            );
+            onUpdate(currentAssignment as SubjectTeacher);
         }
         closeModal();
     };
 
     const handleDelete = () => {
         if (assignmentToDelete !== null) {
-            setAssignments(assignments.filter(a => a.id !== assignmentToDelete));
+            onDelete(assignmentToDelete);
             setAssignmentToDelete(null);
         }
     };
@@ -1285,7 +1624,13 @@ const SubjectTeacherManagementPage = ({
 };
 
 
-const ClassManagementPage = ({ classes, setClasses, teachers }: { classes: Class[], setClasses: React.Dispatch<React.SetStateAction<Class[]>>, teachers: Teacher[] }) => {
+const ClassManagementPage = ({ classes, teachers, onAdd, onUpdate, onDelete }: { 
+    classes: Class[], 
+    teachers: Teacher[],
+    onAdd: (cls: Omit<Class, 'id'>) => void,
+    onUpdate: (cls: Class) => void,
+    onDelete: (clsId: number) => void,
+}) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
     const [currentClass, setCurrentClass] = useState<Partial<Class>>({});
@@ -1323,16 +1668,16 @@ const ClassManagementPage = ({ classes, setClasses, teachers }: { classes: Class
         }
 
         if (modalMode === 'add') {
-            setClasses([...classes, { ...currentClass, id: Date.now() } as Class]);
+            onAdd(currentClass as Omit<Class, 'id'>);
         } else {
-            setClasses(classes.map(c => c.id === currentClass.id ? { ...c, ...currentClass } : c));
+            onUpdate(currentClass as Class);
         }
         closeModal();
     };
 
     const handleDelete = () => {
         if (classToDelete !== null) {
-            setClasses(classes.filter(c => c.id !== classToDelete));
+            onDelete(classToDelete);
             if (paginatedClasses.length === 1 && currentPage > 1) {
                 setCurrentPage(currentPage - 1);
             }
@@ -1441,10 +1786,17 @@ const ClassManagementPage = ({ classes, setClasses, teachers }: { classes: Class
     );
 };
 
-const StudentAttendanceInputPage = ({ students, classes, teachers }: { students: Student[], classes: Class[], teachers: Teacher[] }) => {
+const StudentAttendanceInputPage = ({ students, classes, teachers, onSubmitAttendance }: {
+    students: Student[];
+    classes: Class[];
+    teachers: Teacher[];
+    onSubmitAttendance: (records: Omit<StudentAttendance, 'id'>[]) => void;
+}) => {
+    const isOnline = useOnlineStatus();
     const [selectedClassId, setSelectedClassId] = useState<string>('');
     const [attendanceDate, setAttendanceDate] = useState('');
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+    const [successMessage, setSuccessMessage] = useState('');
     const [attendance, setAttendance] = useState<{ [key: number]: string }>({});
     const [attendingTeachersCount, setAttendingTeachersCount] = useState('0');
 
@@ -1484,17 +1836,28 @@ const StudentAttendanceInputPage = ({ students, classes, teachers }: { students:
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        console.log({
-            classId: selectedClassId,
+        
+        const newAttendanceRecords = Object.entries(attendance).map(([studentId, status]) => ({
+            studentId: Number(studentId),
             date: attendanceDate,
-            studentAttendance: attendance,
-            teacherAttendanceCount: Number(attendingTeachersCount),
-        });
+            meeting: 1, // Simplified to 1 meeting per day for this form
+            status: status as AttendanceStatus,
+        }));
+        
+        onSubmitAttendance(newAttendanceRecords);
+
+        if (!isOnline) {
+            setSuccessMessage('Anda sedang offline. Data kehadiran telah disimpan secara lokal dan akan disinkronkan saat kembali online.');
+        } else {
+            setSuccessMessage("Data kehadiran telah berhasil disimpan.");
+        }
+        
         setIsSuccessModalOpen(true);
     };
     
     const closeSuccessModal = useCallback(() => {
         setIsSuccessModalOpen(false);
+        setSuccessMessage('');
         resetForm();
     }, [resetForm]);
 
@@ -1511,7 +1874,7 @@ const StudentAttendanceInputPage = ({ students, classes, teachers }: { students:
                     </h3>
                     <div className="max-w-xs">
                         <label htmlFor="attendanceDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Kehadiran</label>
-                        <input id="attendanceDate" type="date" value={attendanceDate} onChange={handleDateChange} className={`${formInputClass} dark:[color-scheme:dark]`} />
+                        <input id="attendanceDate" type="date" value={attendanceDate} onChange={handleDateChange} className={`${formInputClass} dark:[color-scheme:dark]`} required />
                     </div>
                 </div>
 
@@ -1523,7 +1886,7 @@ const StudentAttendanceInputPage = ({ students, classes, teachers }: { students:
                         </h3>
                         <div className="max-w-xs">
                             <label htmlFor="classSelect" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Kelas</label>
-                            <select id="classSelect" onChange={handleClassChange} value={selectedClassId} className={formInputClass}>
+                            <select id="classSelect" onChange={handleClassChange} value={selectedClassId} className={formInputClass} required>
                                 <option value="" disabled>-- Pilih Kelas --</option>
                                 {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
@@ -1596,13 +1959,18 @@ const StudentAttendanceInputPage = ({ students, classes, teachers }: { students:
                 isOpen={isSuccessModalOpen}
                 onClose={closeSuccessModal}
                 title="Berhasil Disimpan"
-                message="Data kehadiran telah berhasil disimpan."
+                message={successMessage}
             />
         </div>
     );
 };
 
-const TeacherManagementPage = ({ teachers, setTeachers }: { teachers: Teacher[], setTeachers: React.Dispatch<React.SetStateAction<Teacher[]>> }) => {
+const TeacherManagementPage = ({ teachers, onAdd, onUpdate, onDelete }: { 
+    teachers: Teacher[], 
+    onAdd: (teacher: Omit<Teacher, 'id'>) => void,
+    onUpdate: (teacher: Teacher) => void,
+    onDelete: (teacherId: number) => void,
+}) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
     const [currentTeacher, setCurrentTeacher] = useState<Partial<Teacher>>({});
@@ -1645,16 +2013,16 @@ const TeacherManagementPage = ({ teachers, setTeachers }: { teachers: Teacher[],
         }
 
         if (modalMode === 'add') {
-            setTeachers([...teachers, { ...currentTeacher, id: Date.now() } as Teacher]);
+            onAdd(currentTeacher as Omit<Teacher, 'id'>);
         } else {
-            setTeachers(teachers.map(t => t.id === currentTeacher.id ? { ...t, ...currentTeacher } : t));
+            onUpdate(currentTeacher as Teacher);
         }
         closeModal();
     };
 
     const handleDelete = () => {
         if (teacherToDelete !== null) {
-            setTeachers(teachers.filter(t => t.id !== teacherToDelete));
+            onDelete(teacherToDelete);
             if (paginatedTeachers.length === 1 && currentPage > 1) {
                 setCurrentPage(currentPage - 1);
             }
@@ -1777,8 +2145,18 @@ const TeacherManagementPage = ({ teachers, setTeachers }: { teachers: Teacher[],
     );
 };
 
-const StudentManagementPage = ({ students, setStudents, classes }: { students: Student[], setStudents: React.Dispatch<React.SetStateAction<Student[]>>, classes: Class[] }) => {
+const StudentManagementPage = ({ students, classes, onAdd, onUpdate, onDelete, onAddBatch }: { 
+    students: Student[], 
+    classes: Class[],
+    onAdd: (student: Omit<Student, 'id'>) => void,
+    onUpdate: (student: Student) => void,
+    onDelete: (studentId: number) => void,
+    onAddBatch: (students: Student[]) => void,
+}) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+    const [successMessage, setSuccessMessage] = useState('');
     const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
     const [currentStudent, setCurrentStudent] = useState<Partial<Student>>({});
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1823,16 +2201,16 @@ const StudentManagementPage = ({ students, setStudents, classes }: { students: S
         }
 
         if (modalMode === 'add') {
-            setStudents([...students, { ...currentStudent, id: Date.now() } as Student]);
+            onAdd(currentStudent as Omit<Student, 'id'>);
         } else {
-            setStudents(students.map(s => s.id === currentStudent.id ? { ...s, ...currentStudent } : s));
+            onUpdate(currentStudent as Student);
         }
         closeModal();
     };
 
     const handleDelete = () => {
         if (studentToDelete !== null) {
-            setStudents(students.filter(s => s.id !== studentToDelete));
+            onDelete(studentToDelete);
             if (paginatedStudents.length === 1 && currentPage > 1) {
                 setCurrentPage(currentPage - 1);
             }
@@ -1861,19 +2239,80 @@ const StudentManagementPage = ({ students, setStudents, classes }: { students: S
         return classes.find(c => c.id === classId)?.name || 'N/A';
     };
 
+    const handleImportSuccess = (count: number) => {
+        setSuccessMessage(`${count} data siswa berhasil diimpor.`);
+        setIsSuccessModalOpen(true);
+    };
+
+    const handleDownloadTemplate = () => {
+        const XLSX = (window as any).XLSX;
+        // Data for the main import sheet
+        const headers = ['nisn', 'name', 'gender', 'status', 'entryDate', 'className', 'whatsapp'];
+        const sampleData = [
+            ['0012345678', 'Budi Santoso', 'Laki-Laki', 'Siswa Baru', '2024-07-15', 'X Rekayasa Perangkat Lunak', '6281234567890'],
+            ['0012345679', 'Citra Lestari', 'Perempuan', 'Siswa Pindahan', '2024-07-15', 'XI TJKT 1', '6289876543210'],
+        ];
+        const wsData = [headers, ...sampleData];
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+        // Data for the guide sheet
+        const guideData = [
+            ['Panduan Pengisian Template Import Siswa'],
+            [],
+            ['Kolom', 'Keterangan', 'Contoh Nilai Valid'],
+            ['nisn', 'Wajib diisi. Harus unik.', '0012345678'],
+            ['name', 'Wajib diisi. Nama lengkap siswa.', 'Budi Contoh'],
+            ['gender', `Wajib diisi. Pilih salah satu: ${Object.values(Gender).join(', ')}`, 'Laki-Laki'],
+            ['status', `Wajib diisi. Pilih salah satu: ${Object.values(StudentStatus).join(', ')}`, 'Siswa Baru'],
+            ['entryDate', 'Wajib diisi. Format: YYYY-MM-DD.', '2024-07-15'],
+            ['className', 'Wajib diisi. Nama kelas harus sesuai dengan yang ada di sistem.', 'X Rekayasa Perangkat Lunak'],
+            ['whatsapp', 'Opsional. Format internasional diawali 62.', '6281234567890'],
+            [],
+            ['Daftar Nama Kelas yang Tersedia:'],
+            ...classes.map(c => [c.name])
+        ];
+        const wsGuide = XLSX.utils.aoa_to_sheet(guideData);
+
+        // Auto-fit columns for better readability
+        ws['!cols'] = headers.map(h => ({ wch: h.length + 5 }));
+        wsGuide['!cols'] = [{wch: 20}, {wch: 50}, {wch: 30}];
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Data Siswa');
+        XLSX.utils.book_append_sheet(wb, wsGuide, 'Panduan');
+        
+        XLSX.writeFile(wb, 'template_import_siswa.xlsx');
+    };
+
     return (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
             {loading ? <LoadingSpinner /> : (
                 <>
-                    <div className="flex justify-between items-center mb-6">
+                    <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
                         <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Manajemen Data Siswa</h2>
-                        <button
-                            onClick={() => openModal('add')}
-                            className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 flex items-center space-x-2 hover:scale-105"
-                        >
-                            <Icon>{ICONS.plus}</Icon>
-                            <span>Tambah Siswa</span>
-                        </button>
+                        <div className="flex items-center space-x-2">
+                             <button
+                                onClick={handleDownloadTemplate}
+                                className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 flex items-center space-x-2 hover:scale-105"
+                            >
+                                <Icon className="w-5 h-5">{ICONS.download}</Icon>
+                                <span>Download Template</span>
+                            </button>
+                             <button
+                                onClick={() => setIsImportModalOpen(true)}
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 flex items-center space-x-2 hover:scale-105"
+                            >
+                                <Icon className="w-5 h-5">{ICONS.upload}</Icon>
+                                <span>Import Siswa</span>
+                            </button>
+                            <button
+                                onClick={() => openModal('add')}
+                                className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 flex items-center space-x-2 hover:scale-105"
+                            >
+                                <Icon>{ICONS.plus}</Icon>
+                                <span>Tambah Siswa</span>
+                            </button>
+                        </div>
                     </div>
 
                     <div className="overflow-x-auto">
@@ -2008,15 +2447,33 @@ const StudentManagementPage = ({ students, setStudents, classes }: { students: S
                 title="Hapus Data Siswa?"
                 message="Apakah Anda yakin ingin menghapus data siswa ini? Semua data kehadiran dan riwayat siswa ini akan terhapus secara permanen."
             />
+
+            <ImportStudentModal 
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                onImport={onAddBatch}
+                onImportSuccess={handleImportSuccess}
+                students={students}
+                classes={classes}
+            />
+            
+            <SuccessModal 
+                isOpen={isSuccessModalOpen}
+                onClose={() => setIsSuccessModalOpen(false)}
+                title="Import Berhasil"
+                message={successMessage}
+            />
+
         </div>
     );
 };
 
-const StudentTransferPage = ({ students, setStudents, transfers, setTransfers }: {
+const StudentTransferPage = ({ students, transfers, onAdd, onUpdate, onDelete }: {
     students: Student[];
-    setStudents: React.Dispatch<React.SetStateAction<Student[]>>;
     transfers: StudentTransfer[];
-    setTransfers: React.Dispatch<React.SetStateAction<StudentTransfer[]>>;
+    onAdd: (transfer: Omit<StudentTransfer, 'id'>) => void;
+    onUpdate: (transfer: StudentTransfer) => void;
+    onDelete: (transferId: number) => void;
 }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
@@ -2057,35 +2514,16 @@ const StudentTransferPage = ({ students, setStudents, transfers, setTransfers }:
         }
 
         if (modalMode === 'add') {
-            const newTransfer = { ...currentTransfer, id: Date.now() } as StudentTransfer;
-            setTransfers(prev => [...prev, newTransfer]);
-            setStudents(prev => prev.map(s => 
-                s.id === newTransfer.studentId 
-                ? { ...s, status: StudentStatus.Inactive, exitDate: newTransfer.exitDate } 
-                : s
-            ));
+            onAdd(currentTransfer as Omit<StudentTransfer, 'id'>);
         } else {
-            setTransfers(prev => prev.map(t => t.id === currentTransfer.id ? { ...t, ...currentTransfer } as StudentTransfer : t));
-            setStudents(prev => prev.map(s => 
-                s.id === currentTransfer.studentId 
-                ? { ...s, exitDate: currentTransfer.exitDate } 
-                : s
-            ));
+            onUpdate(currentTransfer as StudentTransfer);
         }
         closeModal();
     };
 
     const handleDelete = () => {
         if (transferToDelete !== null) {
-            const transferToDeleteData = transfers.find(t => t.id === transferToDelete);
-            if (!transferToDeleteData) return;
-
-            setTransfers(prev => prev.filter(t => t.id !== transferToDelete));
-            setStudents(prev => prev.map(s => 
-                s.id === transferToDeleteData.studentId 
-                ? { ...s, status: StudentStatus.New, exitDate: undefined } 
-                : s
-            ));
+            onDelete(transferToDelete);
             setTransferToDelete(null);
         }
     };
@@ -2624,6 +3062,20 @@ function PlaceholderPage({ title }: { title: string }) {
 
 
 function App() {
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(registration => {
+            console.log('ServiceWorker registration successful with scope: ', registration.scope);
+          })
+          .catch(err => {
+            console.error('ServiceWorker registration failed: ', err);
+          });
+      });
+    }
+  }, []);
+
   return (
     <ThemeProvider>
         <AuthProvider>
@@ -2635,38 +3087,195 @@ function App() {
 
 const MainApp = () => {
     const { isAuthenticated } = useAuth();
+    const isOnline = useOnlineStatus();
 
-    // Centralized state management
-    const [students, setStudents] = useState<Student[]>(initialStudents);
-    const [teachers, setTeachers] = useState<Teacher[]>(initialTeachers);
-    const [subjects, setSubjects] = useState<Subject[]>(initialSubjects);
-    const [classes, setClasses] = useState<Class[]>(initialClasses);
-    const [transfers, setTransfers] = useState<StudentTransfer[]>(initialStudentTransfers);
-    const [subjectTeachers, setSubjectTeachers] = useState<SubjectTeacher[]>(initialSubjectTeachers);
-    const [studentAttendance, setStudentAttendance] = useState<StudentAttendance[]>(initialStudentAttendance);
-    const [teacherAttendance, setTeacherAttendance] = useState<TeacherAttendance[]>(initialTeacherAttendance);
+    // Centralized state management with localStorage persistence
+    const [syncQueue, setSyncQueue] = usePersistentState<any[]>('syncQueue', []);
+    const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
+    const [showSyncedNotification, setShowSyncedNotification] = useState(false);
     
+    const [students, setStudents] = usePersistentState<Student[]>('students', initialStudents);
+    const [teachers, setTeachers] = usePersistentState<Teacher[]>('teachers', initialTeachers);
+    const [subjects, setSubjects] = usePersistentState<Subject[]>('subjects', initialSubjects);
+    const [classes, setClasses] = usePersistentState<Class[]>('classes', initialClasses);
+    const [transfers, setTransfers] = usePersistentState<StudentTransfer[]>('transfers', initialStudentTransfers);
+    const [subjectTeachers, setSubjectTeachers] = usePersistentState<SubjectTeacher[]>('subjectTeachers', initialSubjectTeachers);
+    const [studentAttendance, setStudentAttendance] = usePersistentState<StudentAttendance[]>('studentAttendance', initialStudentAttendance);
+    const [teacherAttendance, setTeacherAttendance] = usePersistentState<TeacherAttendance[]>('teacherAttendance', initialTeacherAttendance);
+    const [calendarEvents, setCalendarEvents] = usePersistentState<CalendarEvent[]>('calendarEvents', initialCalendarEvents);
+    
+    const handleSync = useCallback(async () => {
+        if (!isOnline || syncQueue.length === 0 || syncStatus === 'syncing') {
+            return;
+        }
+
+        setSyncStatus('syncing');
+        console.log(`Starting sync process for ${syncQueue.length} items...`);
+
+        // Simulate processing each item in the queue
+        for (const item of syncQueue) {
+            console.log(`- Syncing item: ${item.type} with payload:`, item.payload);
+            // In a real app, you'd have a switch statement here to call different API endpoints
+            await new Promise(resolve => setTimeout(resolve, 100)); // Simulate individual request time
+        }
+        
+        // Simulate overall network request
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        // Simulate a possible failure (10% chance)
+        if (Math.random() < 0.1) {
+            setSyncStatus('failed');
+            console.error('Sync process failed. Items remain in queue.');
+        } else {
+            console.log('Sync process successful.');
+            setSyncQueue([]);
+            setSyncStatus('idle');
+            setShowSyncedNotification(true);
+            setTimeout(() => setShowSyncedNotification(false), 5000);
+        }
+    }, [isOnline, syncQueue, syncStatus, setSyncQueue]);
+
+    // Effect to auto-sync when coming online
+    useEffect(() => {
+        if (isOnline && syncQueue.length > 0 && syncStatus !== 'syncing') {
+            handleSync();
+        }
+    }, [isOnline, syncQueue.length, handleSync, syncStatus]);
+    
+    // Effect to update status based on queue length
+    useEffect(() => {
+        if (syncQueue.length > 0 && syncStatus === 'idle') {
+            setSyncStatus('pending');
+        } else if (syncQueue.length === 0 && syncStatus !== 'syncing') {
+            setSyncStatus('idle');
+        }
+    }, [syncQueue.length, syncStatus]);
+
+    // --- CENTRALIZED CRUD HANDLERS WITH SYNC QUEUE LOGIC ---
+    
+    // Generic handler factory
+    const createCrudHandlers = <T extends { id: number }>(
+        setter: React.Dispatch<React.SetStateAction<T[]>>,
+        entityName: string
+    ) => ({
+        add: (item: Omit<T, 'id'>) => {
+            const newItem = { ...item, id: Date.now() } as T;
+            setter(prev => [...prev, newItem]);
+            if (!isOnline) {
+                setSyncQueue(prev => [...prev, { type: `ADD_${entityName}`, payload: newItem, timestamp: new Date().toISOString() }]);
+            }
+        },
+        update: (item: T) => {
+            setter(prev => prev.map(i => i.id === item.id ? item : i));
+             if (!isOnline) {
+                setSyncQueue(prev => [...prev, { type: `UPDATE_${entityName}`, payload: item, timestamp: new Date().toISOString() }]);
+            }
+        },
+        delete: (itemId: number) => {
+            setter(prev => prev.filter(i => i.id !== itemId));
+            if (!isOnline) {
+                setSyncQueue(prev => [...prev, { type: `DELETE_${entityName}`, payload: { id: itemId }, timestamp: new Date().toISOString() }]);
+            }
+        }
+    });
+
+    const studentHandlers = {
+        ...createCrudHandlers(setStudents, 'STUDENT'),
+        addBatch: (newStudents: Student[]) => {
+            const studentsWithIds = newStudents.map((s, i) => ({ ...s, id: s.id || Date.now() + i }));
+            setStudents(prev => [...prev, ...studentsWithIds]);
+            if (!isOnline) {
+                setSyncQueue(prev => [...prev, { type: 'ADD_STUDENTS_BATCH', payload: studentsWithIds, timestamp: new Date().toISOString() }]);
+            }
+        }
+    };
+    const teacherHandlers = createCrudHandlers(setTeachers, 'TEACHER');
+    const subjectHandlers = createCrudHandlers(setSubjects, 'SUBJECT');
+    const classHandlers = createCrudHandlers(setClasses, 'CLASS');
+    const calendarEventHandlers = createCrudHandlers(setCalendarEvents, 'CALENDAR_EVENT');
+    const subjectTeacherHandlers = createCrudHandlers(setSubjectTeachers, 'SUBJECT_TEACHER');
+
+    const transferHandlers = {
+        add: (transfer: Omit<StudentTransfer, 'id'>) => {
+            const newTransfer = { ...transfer, id: Date.now() };
+            setTransfers(prev => [...prev, newTransfer]);
+            setStudents(prev => prev.map(s => 
+                s.id === newTransfer.studentId 
+                ? { ...s, status: StudentStatus.Inactive, exitDate: newTransfer.exitDate } 
+                : s
+            ));
+            if (!isOnline) {
+                setSyncQueue(prev => [...prev, { type: 'ADD_TRANSFER', payload: newTransfer, timestamp: new Date().toISOString() }]);
+            }
+        },
+        update: (transfer: StudentTransfer) => {
+            setTransfers(prev => prev.map(t => t.id === transfer.id ? transfer : t));
+            setStudents(prev => prev.map(s => 
+                s.id === transfer.studentId 
+                ? { ...s, exitDate: transfer.exitDate } 
+                : s
+            ));
+            if (!isOnline) {
+                setSyncQueue(prev => [...prev, { type: 'UPDATE_TRANSFER', payload: transfer, timestamp: new Date().toISOString() }]);
+            }
+        },
+        delete: (transferId: number) => {
+            const transferToDeleteData = transfers.find(t => t.id === transferId);
+            if (!transferToDeleteData) return;
+
+            setTransfers(prev => prev.filter(t => t.id !== transferId));
+            setStudents(prev => prev.map(s => 
+                s.id === transferToDeleteData.studentId 
+                ? { ...s, status: StudentStatus.New, exitDate: undefined } 
+                : s
+            ));
+             if (!isOnline) {
+                setSyncQueue(prev => [...prev, { type: 'DELETE_TRANSFER', payload: { id: transferId, studentId: transferToDeleteData.studentId }, timestamp: new Date().toISOString() }]);
+            }
+        },
+    };
+
+    const handleSubmitAttendance = (records: Omit<StudentAttendance, 'id'>[]) => {
+        const recordsWithIds = records.map((r, i) => ({ ...r, id: Date.now() + i }));
+        setStudentAttendance(prev => [...prev, ...recordsWithIds]);
+        if (!isOnline) {
+            setSyncQueue(prev => [...prev, { type: 'SUBMIT_ATTENDANCE_BATCH', payload: recordsWithIds, timestamp: new Date().toISOString() }]);
+        }
+    };
+
+
     return (
         <HashRouter>
             {isAuthenticated ? (
-                <Layout>
-                    <Routes>
-                        <Route path="/" element={<DashboardPage students={students} teachers={teachers} classes={classes} />} />
-                        <Route path="/identitas-sekolah" element={<SchoolIdentityPage />} />
-                        <Route path="/kalender-pendidikan" element={<CalendarManagementPage />} />
-                        <Route path="/guru" element={<TeacherManagementPage teachers={teachers} setTeachers={setTeachers} />} />
-                        <Route path="/mapel" element={<SubjectManagementPage subjects={subjects} setSubjects={setSubjects} />} />
-                        <Route path="/pengajar-mapel" element={<SubjectTeacherManagementPage assignments={subjectTeachers} setAssignments={setSubjectTeachers} teachers={teachers} subjects={subjects} classes={classes} />} />
-                        <Route path="/siswa" element={<StudentManagementPage students={students} setStudents={setStudents} classes={classes} />} />
-                        <Route path="/kelas" element={<ClassManagementPage classes={classes} setClasses={setClasses} teachers={teachers} />} />
-                        <Route path="/input-kehadiran" element={<StudentAttendanceInputPage students={students} classes={classes} teachers={teachers} />} />
-                        <Route path="/rekap-kehadiran-siswa" element={<RekapKehadiranSiswaPage students={students} classes={classes} attendanceRecords={studentAttendance} />} />
-                        <Route path="/rekap-kehadiran-guru" element={<RekapKehadiranGuruPage teachers={teachers} subjectTeachers={subjectTeachers} attendanceRecords={teacherAttendance}/>} />
-                        <Route path="/mutasi-siswa" element={<StudentTransferPage students={students} setStudents={setStudents} transfers={transfers} setTransfers={setTransfers} />} />
-                        <Route path="/manajemen-pengguna" element={<PlaceholderPage title="Manajemen Pengguna"/>} />
-                        <Route path="*" element={<Navigate to="/" />} />
-                    </Routes>
-                </Layout>
+                <div className="relative">
+                    <Layout onSyncNow={handleSync} syncStatus={syncStatus} pendingSyncCount={syncQueue.length}>
+                        <Routes>
+                            <Route path="/" element={<DashboardPage students={students} teachers={teachers} classes={classes} />} />
+                            <Route path="/identitas-sekolah" element={<SchoolIdentityPage />} />
+                            <Route path="/kalender-pendidikan" element={<CalendarManagementPage events={calendarEvents} onAdd={calendarEventHandlers.add} onUpdate={calendarEventHandlers.update} onDelete={calendarEventHandlers.delete} />} />
+                            <Route path="/guru" element={<TeacherManagementPage teachers={teachers} onAdd={teacherHandlers.add} onUpdate={teacherHandlers.update} onDelete={teacherHandlers.delete} />} />
+                            <Route path="/mapel" element={<SubjectManagementPage subjects={subjects} onAdd={subjectHandlers.add} onUpdate={subjectHandlers.update} onDelete={subjectHandlers.delete} />} />
+                            <Route path="/pengajar-mapel" element={<SubjectTeacherManagementPage assignments={subjectTeachers} onAdd={subjectTeacherHandlers.add} onUpdate={subjectTeacherHandlers.update} onDelete={subjectTeacherHandlers.delete} teachers={teachers} subjects={subjects} classes={classes} />} />
+                            <Route path="/siswa" element={<StudentManagementPage students={students} classes={classes} onAdd={studentHandlers.add} onUpdate={studentHandlers.update} onDelete={studentHandlers.delete} onAddBatch={studentHandlers.addBatch} />} />
+                            <Route path="/kelas" element={<ClassManagementPage classes={classes} teachers={teachers} onAdd={classHandlers.add} onUpdate={classHandlers.update} onDelete={classHandlers.delete} />} />
+                            <Route path="/input-kehadiran" element={<StudentAttendanceInputPage students={students} classes={classes} teachers={teachers} onSubmitAttendance={handleSubmitAttendance} />} />
+                            <Route path="/rekap-kehadiran-siswa" element={<RekapKehadiranSiswaPage students={students} classes={classes} attendanceRecords={studentAttendance} />} />
+                            <Route path="/rekap-kehadiran-guru" element={<RekapKehadiranGuruPage teachers={teachers} subjectTeachers={subjectTeachers} attendanceRecords={teacherAttendance}/>} />
+                            <Route path="/mutasi-siswa" element={<StudentTransferPage students={students} transfers={transfers} onAdd={transferHandlers.add} onUpdate={transferHandlers.update} onDelete={transferHandlers.delete} />} />
+                            <Route path="/manajemen-pengguna" element={<PlaceholderPage title="Manajemen Pengguna"/>} />
+                            <Route path="*" element={<Navigate to="/" />} />
+                        </Routes>
+                    </Layout>
+                    {showSyncedNotification && (
+                        <div className="fixed bottom-5 right-5 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg shadow-lg z-50 animate-fade-in dark:bg-green-900/80 dark:text-green-200 dark:border-green-600" role="alert">
+                            <strong className="font-bold">Sinkronisasi Berhasil!</strong>
+                            <span className="block sm:inline ml-2">Data yang tersimpan offline telah diperbarui.</span>
+                             <button onClick={() => setShowSyncedNotification(false)} className="absolute top-0 bottom-0 right-0 px-4 py-3">
+                                <svg className="fill-current h-6 w-6 text-green-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><title>Close</title><path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/></svg>
+                            </button>
+                        </div>
+                    )}
+                </div>
             ) : (
                 <Routes>
                     <Route path="/login" element={<LoginPage />} />
