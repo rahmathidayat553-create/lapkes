@@ -45,6 +45,31 @@ export enum TransferReason {
     Keluar = 'Keluar',
 }
 
+export enum AchievementLevel {
+  Sekolah = 'Sekolah',
+  Kecamatan = 'Kecamatan',
+  Kabupaten = 'Kabupaten/Kota',
+  Provinsi = 'Provinsi',
+  Nasional = 'Nasional',
+  Internasional = 'Internasional',
+}
+
+export enum ViolationLevel {
+    Ringan = 'Ringan',
+    Sedang = 'Sedang',
+    Berat = 'Berat',
+}
+
+export enum Sanction {
+    PeringatanLisan = 'Peringatan Lisan',
+    PeringatanTertulis = 'Peringatan Tertulis',
+    SP1 = 'SP1',
+    SP2 = 'SP2',
+    SP3 = 'SP3',
+    Skorsing = 'Skorsing',
+    Dikeluarkan = 'Dikeluarkan',
+}
+
 export interface User {
   id: number;
   name: string;
@@ -137,4 +162,21 @@ export interface StudentTransfer {
     exitDate: string;
     reason: TransferReason;
     notes?: string;
+}
+
+export interface StudentAchievement {
+  id: number;
+  studentId: number;
+  achievementName: string;
+  level: AchievementLevel;
+  date: string;
+}
+
+export interface StudentViolation {
+  id: number;
+  studentId: number;
+  violationName: string;
+  level: ViolationLevel;
+  date: string;
+  sanction: Sanction;
 }

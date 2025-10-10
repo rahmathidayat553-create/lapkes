@@ -1,7 +1,9 @@
+
+
 import React, { useState, useCallback, useMemo, createContext, useContext, useEffect, useRef } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import type { School, Teacher, Subject, Class, Student, User, CalendarEvent, StudentTransfer, SubjectTeacher, StudentAttendance, TeacherAttendance } from './types';
-import { SchoolLevel, SchoolDays, TeacherStatus, Gender, StudentStatus, TransferReason, CalendarStatus, AttendanceStatus } from './types';
+import type { School, Teacher, Subject, Class, Student, User, CalendarEvent, StudentTransfer, SubjectTeacher, StudentAttendance, TeacherAttendance, StudentAchievement, StudentViolation } from './types';
+import { SchoolLevel, SchoolDays, TeacherStatus, Gender, StudentStatus, TransferReason, CalendarStatus, AttendanceStatus, AchievementLevel, ViolationLevel, Sanction } from './types';
 
 // --- MOCK DATA ---
 const initialSchoolData: School = {
@@ -53,6 +55,16 @@ const initialStudents: Student[] = [
     { id: 6, nisn: '006', name: 'Nina', gender: Gender.Female, status: StudentStatus.New, entryDate: '2023-07-15', classId: 2 },
     { id: 7, nisn: '007', name: 'Ani', gender: Gender.Female, status: StudentStatus.New, entryDate: '2023-07-15', classId: 2 },
     { id: 8, nisn: '008', name: 'Siti', gender: Gender.Female, status: StudentStatus.New, entryDate: '2023-07-15', classId: 1 },
+];
+
+const initialStudentAchievements: StudentAchievement[] = [
+    { id: 1, studentId: 2, achievementName: 'Juara 1 Lomba Cerdas Cermat', level: AchievementLevel.Kabupaten, date: '2024-05-10' },
+    { id: 2, studentId: 5, achievementName: 'Olimpiade Sains Nasional (OSN) Fisika', level: AchievementLevel.Nasional, date: '2024-08-20' },
+];
+
+const initialStudentViolations: StudentViolation[] = [
+    { id: 1, studentId: 3, violationName: 'Terlambat masuk sekolah', level: ViolationLevel.Ringan, date: '2024-09-01', sanction: Sanction.PeringatanLisan },
+    { id: 2, studentId: 4, violationName: 'Tidak mengerjakan tugas', level: ViolationLevel.Sedang, date: '2024-09-05', sanction: Sanction.PeringatanTertulis },
 ];
 
 const initialUsers: User[] = [
@@ -122,7 +134,8 @@ const ICONS = {
   calendar: <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0h18M-4.5 12h27" />,
   users: <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-4.663M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />,
   book: <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />,
-  student: <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0l-2.072-1.036A49.92 49.92 0 003 13.179M21 13.179a49.92 49.92 0 00-2.192-2.998l-2.072 1.036m-1.631 0c.21.35.394.71.549 1.082" />,
+  'academic-cap': <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0l-2.072-1.036A49.92 49.92 0 003 13.179M21 13.179a49.92 49.92 0 00-2.192-2.998l-2.072 1.036m-1.631 0c.21.35.394.71.549 1.082" />,
+  student: <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />,
   clipboard: <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75c0-.231-.035-.454-.1-.664M6.75 7.5h1.5v-1.5h-1.5v1.5z" />,
   logout: <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />,
   sun: <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.95-4.243l-1.59-1.59M3 12H.75m4.243-4.95l1.59-1.59M12 6.75A5.25 5.25 0 006.75 12a5.25 5.25 0 005.25 5.25a5.25 5.25 0 005.25-5.25A5.25 5.25 0 0012 6.75z" />,
@@ -139,7 +152,6 @@ const ICONS = {
   'arrow-path': <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0011.667 0l3.181-3.183m-4.991-2.695v-2.257a2.25 2.25 0 00-2.25-2.25H12.25a2.25 2.25 0 00-2.25 2.25v2.257m12.138 2.695L15.817 17.07a8.25 8.25 0 01-11.667 0L2.985 15.817" />,
 };
 
-// FIX: Changed prop types to use React.PropsWithChildren to resolve errors about missing 'children' prop.
 type IconProps = React.PropsWithChildren<{ className?: string }>;
 function Icon({ children, className = "w-6 h-6" }: IconProps) {
     return (
@@ -201,7 +213,6 @@ const ThemeContext = createContext<{ theme: string; toggleTheme: () => void; }>(
     toggleTheme: () => {},
 });
 
-// FIX: Changed prop types to use React.PropsWithChildren to resolve errors about missing 'children' prop.
 type ThemeProviderProps = React.PropsWithChildren<{}>;
 function ThemeProvider({ children }: ThemeProviderProps) {
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
@@ -234,7 +245,6 @@ const AuthContext = createContext<{ isAuthenticated: boolean; login: (user: stri
     logout: () => {},
 });
 
-// FIX: Changed prop types to use React.PropsWithChildren to resolve errors about missing 'children' prop.
 type AuthProviderProps = React.PropsWithChildren<{}>;
 function AuthProvider({ children }: AuthProviderProps) {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -473,17 +483,31 @@ type ConfirmationModalProps = {
     onConfirm: () => void;
     title: string;
     message: string | React.ReactNode;
+    confirmText?: string;
+    confirmButtonClass?: string;
+    icon?: React.ReactNode;
+    iconContainerClass?: string;
 };
 
-function ConfirmationModal({ isOpen, onClose, onConfirm, title, message }: ConfirmationModalProps) {
+function ConfirmationModal({
+    isOpen,
+    onClose,
+    onConfirm,
+    title,
+    message,
+    confirmText = 'Hapus',
+    confirmButtonClass = 'bg-red-600 hover:bg-red-700',
+    icon = <Icon className="h-6 w-6 text-red-600 dark:text-red-300">{ICONS.warning}</Icon>,
+    iconContainerClass = 'bg-red-100 dark:bg-red-900/50'
+}: ConfirmationModalProps) {
     const titleId = useMemo(() => `confirm-modal-title-${Math.random().toString(36).substr(2, 9)}`, []);
     
     return (
         <BaseModal isOpen={isOpen} onClose={onClose} titleId={titleId} maxWidth="max-w-md">
             <div className="p-6">
                 <div className="flex items-start">
-                    <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/50 sm:mx-0 sm:h-10 sm:w-10">
-                        <Icon className="h-6 w-6 text-red-600 dark:text-red-300">{ICONS.warning}</Icon>
+                    <div className={`mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full sm:mx-0 sm:h-10 sm:w-10 ${iconContainerClass}`}>
+                        {icon}
                     </div>
                     <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
                         <h3 id={titleId} className="text-lg leading-6 font-bold text-gray-900 dark:text-gray-100">
@@ -508,9 +532,9 @@ function ConfirmationModal({ isOpen, onClose, onConfirm, title, message }: Confi
                 <button 
                     type="button" 
                     onClick={onConfirm} 
-                    className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 hover:scale-105"
+                    className={`${confirmButtonClass} text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 hover:scale-105`}
                 >
-                    Hapus
+                    {confirmText}
                 </button>
             </div>
         </BaseModal>
@@ -823,6 +847,8 @@ const Sidebar = () => {
         { path: '/mapel', name: 'Data Mata Pelajaran', icon: ICONS.book },
         { path: '/pengajar-mapel', name: 'Data Pengajar Mapel', icon: ICONS.users },
         { path: '/siswa', name: 'Data Siswa', icon: ICONS.student },
+        { path: '/prestasi-siswa', name: 'Prestasi Siswa', icon: ICONS['academic-cap'] },
+        { path: '/pelanggaran-siswa', name: 'Pelanggaran Siswa', icon: ICONS.warning },
         { path: '/kelas', name: 'Data Kelas', icon: ICONS.school },
         { path: '/input-kehadiran', name: 'Input Kehadiran', icon: ICONS.clipboard },
         { path: '/rekap-kehadiran-siswa', name: 'Rekap Kehadiran Siswa', icon: ICONS.clipboard },
@@ -960,7 +986,6 @@ const Header = ({
     );
 };
 
-// FIX: Changed prop types to use React.PropsWithChildren to resolve errors about missing 'children' prop.
 type LayoutProps = React.PropsWithChildren<{
     onSyncNow: () => void;
     syncStatus: SyncStatus;
@@ -3068,11 +3093,7 @@ const RekapKehadiranGuruPage = ({ teachers, subjectTeachers, attendanceRecords }
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{data.teacherName}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500 dark:text-gray-300">{data.expected}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500 dark:text-gray-300">{data.attended}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-medium">
-                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${data.percentage >= 90 ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200' : data.percentage >= 75 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200'}`}>
-                                            {data.percentage.toFixed(1)}%
-                                        </span>
-                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500 dark:text-gray-300">{data.percentage.toFixed(1)}%</td>
                                 </tr>
                             )) : (
                                 <tr>
@@ -3089,255 +3110,297 @@ const RekapKehadiranGuruPage = ({ teachers, subjectTeachers, attendanceRecords }
     );
 };
 
-// Placeholder for other pages
-function PlaceholderPage({ title }: { title: string }) {
-    return (
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">{title}</h2>
-            <p className="mt-4 text-gray-600 dark:text-gray-300">Fitur ini sedang dalam pengembangan.</p>
-        </div>
-    );
-}
+const UserManagementPage = ({ users, onAdd, onUpdate, onDelete }: {
+    users: User[];
+    onAdd: (user: Omit<User, 'id'>) => void;
+    onUpdate: (user: User) => void;
+    onDelete: (userId: number) => void;
+}) => {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+    const [currentUser, setCurrentUser] = useState<Partial<User>>({});
+    const [userToDelete, setUserToDelete] = useState<number | null>(null);
 
+    const openModal = (mode: 'add' | 'edit', user: User | null = null) => {
+        setModalMode(mode);
+        setCurrentUser(user || { name: '', username: '' });
+        setIsModalOpen(true);
+    };
 
-function App() {
-  useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then(registration => {
-            console.log('ServiceWorker registration successful with scope: ', registration.scope);
-          })
-          .catch(err => {
-            console.error('ServiceWorker registration failed: ', err);
-          });
-      });
-    }
-  }, []);
+    const closeModal = () => {
+        setIsModalOpen(false);
+        setCurrentUser({});
+    };
 
-  return (
-    <ThemeProvider>
-        <AuthProvider>
-          <MainApp />
-        </AuthProvider>
-    </ThemeProvider>
-  );
-}
-
-const MainApp = () => {
-    const { isAuthenticated } = useAuth();
-    const isOnline = useOnlineStatus();
-
-    // Centralized state management with localStorage persistence
-    const [syncQueue, setSyncQueue] = usePersistentState<any[]>('syncQueue', []);
-    const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
-    const [syncProgress, setSyncProgress] = useState<SyncProgress>(null);
-    const [syncError, setSyncError] = useState<string | null>(null);
-    const [showSyncedNotification, setShowSyncedNotification] = useState(false);
-    
-    const [students, setStudents] = usePersistentState<Student[]>('students', initialStudents);
-    const [teachers, setTeachers] = usePersistentState<Teacher[]>('teachers', initialTeachers);
-    const [subjects, setSubjects] = usePersistentState<Subject[]>('subjects', initialSubjects);
-    const [classes, setClasses] = usePersistentState<Class[]>('classes', initialClasses);
-    const [transfers, setTransfers] = usePersistentState<StudentTransfer[]>('transfers', initialStudentTransfers);
-    const [subjectTeachers, setSubjectTeachers] = usePersistentState<SubjectTeacher[]>('subjectTeachers', initialSubjectTeachers);
-    const [studentAttendance, setStudentAttendance] = usePersistentState<StudentAttendance[]>('studentAttendance', initialStudentAttendance);
-    const [teacherAttendance, setTeacherAttendance] = usePersistentState<TeacherAttendance[]>('teacherAttendance', initialTeacherAttendance);
-    const [calendarEvents, setCalendarEvents] = usePersistentState<CalendarEvent[]>('calendarEvents', initialCalendarEvents);
-    
-    const handleSync = useCallback(async () => {
-        if (!isOnline || syncQueue.length === 0 || syncStatus === 'syncing') {
+    const handleSave = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!currentUser.name || !currentUser.username || (modalMode === 'add' && !currentUser.password)) {
+            alert("Harap isi semua field.");
             return;
         }
 
-        setSyncStatus('syncing');
-        setSyncProgress({ current: 0, total: syncQueue.length });
-        setSyncError(null);
-        console.log(`Starting sync process for ${syncQueue.length} items...`);
-
-        // Simulate processing each item in the queue
-        for (let i = 0; i < syncQueue.length; i++) {
-            const item = syncQueue[i];
-            console.log(`- Syncing item ${i + 1}/${syncQueue.length}: ${item.type}`);
-            // In a real app, you'd have a switch statement here to call different API endpoints
-            await new Promise(resolve => setTimeout(resolve, 100)); // Simulate individual request time
-            setSyncProgress({ current: i + 1, total: syncQueue.length });
-        }
-        
-        // Simulate overall network request
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Simulate a possible failure (10% chance)
-        if (Math.random() < 0.1) {
-            const errorMessage = 'Simulasi kegagalan jaringan. Silakan coba lagi.';
-            setSyncStatus('failed');
-            setSyncError(errorMessage);
-            console.error(`Sync process failed: ${errorMessage}`);
+        if (modalMode === 'add') {
+            onAdd(currentUser as Omit<User, 'id'>);
         } else {
-            console.log('Sync process successful.');
-            setSyncQueue([]);
-            setSyncStatus('idle');
-            setSyncProgress(null);
-            setShowSyncedNotification(true);
-            setTimeout(() => setShowSyncedNotification(false), 5000);
+            onUpdate(currentUser as User);
         }
-    }, [isOnline, syncQueue, syncStatus, setSyncQueue]);
+        closeModal();
+    };
 
-    // Effect to auto-sync when coming online
-    useEffect(() => {
-        if (isOnline && syncQueue.length > 0 && syncStatus !== 'syncing') {
-            handleSync();
+    const handleDelete = () => {
+        if (userToDelete !== null) {
+            onDelete(userToDelete);
+            setUserToDelete(null);
         }
-    }, [isOnline, syncQueue.length, handleSync, syncStatus]);
+    };
     
-    // Effect to update status based on queue length
-    useEffect(() => {
-        if (syncQueue.length > 0 && syncStatus === 'idle') {
-            setSyncStatus('pending');
-        } else if (syncQueue.length === 0 && syncStatus !== 'syncing' && syncStatus !== 'failed') {
-            setSyncStatus('idle');
-        }
-    }, [syncQueue.length, syncStatus]);
-
-    // --- CENTRALIZED CRUD HANDLERS WITH SYNC QUEUE LOGIC ---
+    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setCurrentUser({ ...currentUser, [name]: value });
+    };
     
-    // Generic handler factory
-    const createCrudHandlers = <T extends { id: number }>(
-        setter: React.Dispatch<React.SetStateAction<T[]>>,
-        entityName: string
-    ) => ({
-        add: (item: Omit<T, 'id'>) => {
-            const newItem = { ...item, id: Date.now() } as T;
-            setter(prev => [...prev, newItem]);
-            if (!isOnline) {
-                setSyncQueue(prev => [...prev, { type: `ADD_${entityName}`, payload: newItem, timestamp: new Date().toISOString() }]);
-            }
-        },
-        update: (item: T) => {
-            setter(prev => prev.map(i => i.id === item.id ? item : i));
-             if (!isOnline) {
-                setSyncQueue(prev => [...prev, { type: `UPDATE_${entityName}`, payload: item, timestamp: new Date().toISOString() }]);
-            }
-        },
-        delete: (itemId: number) => {
-            setter(prev => prev.filter(i => i.id !== itemId));
-            if (!isOnline) {
-                setSyncQueue(prev => [...prev, { type: `DELETE_${entityName}`, payload: { id: itemId }, timestamp: new Date().toISOString() }]);
-            }
-        }
-    });
+    return (
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Manajemen Pengguna</h2>
+                <button
+                    onClick={() => openModal('add')}
+                    className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 flex items-center space-x-2 hover:scale-105"
+                >
+                    <Icon>{ICONS.plus}</Icon>
+                    <span>Tambah Pengguna</span>
+                </button>
+            </div>
+            
+            <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-700/50">
+                        <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Username</th>
+                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {users.map((user, index) => (
+                            <tr key={user.id}>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{user.name}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{user.username}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center space-x-2">
+                                    <Tooltip text="Edit">
+                                        <button onClick={() => openModal('edit', user)} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-125">
+                                            <Icon>{ICONS.pencil}</Icon>
+                                        </button>
+                                    </Tooltip>
+                                    <Tooltip text="Hapus">
+                                        <button onClick={() => setUserToDelete(user.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-125">
+                                            <Icon>{ICONS.trash}</Icon>
+                                        </button>
+                                    </Tooltip>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
 
-    const studentHandlers = {
-        ...createCrudHandlers(setStudents, 'STUDENT'),
-        addBatch: (newStudents: Student[]) => {
-            const studentsWithIds = newStudents.map((s, i) => ({ ...s, id: s.id || Date.now() + i }));
-            setStudents(prev => [...prev, ...studentsWithIds]);
-            if (!isOnline) {
-                setSyncQueue(prev => [...prev, { type: 'ADD_STUDENTS_BATCH', payload: studentsWithIds, timestamp: new Date().toISOString() }]);
+            <Modal
+                isOpen={isModalOpen}
+                onClose={closeModal}
+                onSave={handleSave}
+                title={modalMode === 'add' ? 'Tambah Pengguna Baru' : 'Edit Pengguna'}
+                maxWidth="max-w-md"
+            >
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Lengkap</label>
+                        <input type="text" name="name" value={currentUser.name || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
+                        <input type="text" name="username" value={currentUser.username || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
+                        <input type="password" name="password" value={currentUser.password || ''} onChange={handleFormChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200" placeholder={modalMode === 'edit' ? 'Kosongkan jika tidak diubah' : ''} />
+                    </div>
+                </div>
+            </Modal>
+            
+            <ConfirmationModal
+                isOpen={userToDelete !== null}
+                onClose={() => setUserToDelete(null)}
+                onConfirm={handleDelete}
+                title="Hapus Pengguna?"
+                message="Apakah Anda yakin ingin menghapus pengguna ini?"
+            />
+        </div>
+    );
+};
+
+// --- Student Search Component ---
+const StudentSearchInput = ({ students, onSelectStudent, selectedStudentId }: { students: Student[], onSelectStudent: (student: Student | null) => void, selectedStudentId: number | null }) => {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [searchResults, setSearchResults] = useState<Student[]>([]);
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const wrapperRef = useRef<HTMLDivElement>(null);
+
+    const selectedStudent = useMemo(() => students.find(s => s.id === selectedStudentId), [students, selectedStudentId]);
+
+    useEffect(() => {
+        if (selectedStudent) {
+            setSearchTerm(`${selectedStudent.name} (NISN: ${selectedStudent.nisn})`);
+        } else {
+            setSearchTerm('');
+        }
+    }, [selectedStudent]);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+                setIsDropdownOpen(false);
             }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const term = e.target.value;
+        setSearchTerm(term);
+        onSelectStudent(null); // Clear selection when user types
+
+        if (term.length > 1) {
+            const results = students.filter(student =>
+                student.name.toLowerCase().includes(term.toLowerCase()) ||
+                student.nisn.includes(term)
+            ).slice(0, 10); // Limit results
+            setSearchResults(results);
+            setIsDropdownOpen(results.length > 0);
+        } else {
+            setSearchResults([]);
+            setIsDropdownOpen(false);
         }
     };
-    const teacherHandlers = createCrudHandlers(setTeachers, 'TEACHER');
-    const subjectHandlers = createCrudHandlers(setSubjects, 'SUBJECT');
-    const classHandlers = createCrudHandlers(setClasses, 'CLASS');
-    const calendarEventHandlers = createCrudHandlers(setCalendarEvents, 'CALENDAR_EVENT');
-    const subjectTeacherHandlers = createCrudHandlers(setSubjectTeachers, 'SUBJECT_TEACHER');
+    
+    const handleSelect = (student: Student) => {
+        onSelectStudent(student);
+        setSearchTerm(`${student.name} (NISN: ${student.nisn})`);
+        setIsDropdownOpen(false);
+    };
+    
+    return (
+        <div className="relative" ref={wrapperRef}>
+            <input
+                type="text"
+                value={searchTerm}
+                onChange={handleSearchChange}
+                onFocus={() => searchTerm.length > 1 && setIsDropdownOpen(true)}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all duration-200"
+                placeholder="Ketik nama atau NISN siswa..."
+                autoComplete="off"
+            />
+            {isDropdownOpen && searchResults.length > 0 && (
+                <ul className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
+                    {searchResults.map(student => (
+                        <li
+                            key={student.id}
+                            onClick={() => handleSelect(student)}
+                            className="px-4 py-2 cursor-pointer hover:bg-primary-100 dark:hover:bg-primary-700 text-gray-900 dark:text-gray-100"
+                        >
+                            {student.name} <span className="text-sm text-gray-500 dark:text-gray-400">(NISN: {student.nisn})</span>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
+};
 
-    const transferHandlers = {
-        add: (transfer: Omit<StudentTransfer, 'id'>) => {
-            const newTransfer = { ...transfer, id: Date.now() };
-            setTransfers(prev => [...prev, newTransfer]);
-            setStudents(prev => prev.map(s => 
-                s.id === newTransfer.studentId 
-                ? { ...s, status: StudentStatus.Inactive, exitDate: newTransfer.exitDate } 
-                : s
-            ));
-            if (!isOnline) {
-                setSyncQueue(prev => [...prev, { type: 'ADD_TRANSFER', payload: newTransfer, timestamp: new Date().toISOString() }]);
-            }
-        },
-        update: (transfer: StudentTransfer) => {
-            setTransfers(prev => prev.map(t => t.id === transfer.id ? transfer : t));
-            setStudents(prev => prev.map(s => 
-                s.id === transfer.studentId 
-                ? { ...s, exitDate: transfer.exitDate } 
-                : s
-            ));
-            if (!isOnline) {
-                setSyncQueue(prev => [...prev, { type: 'UPDATE_TRANSFER', payload: transfer, timestamp: new Date().toISOString() }]);
-            }
-        },
-        delete: (transferId: number) => {
-            const transferToDeleteData = transfers.find(t => t.id === transferId);
-            if (!transferToDeleteData) return;
+const StudentAchievementPage = ({ students, achievements, onAdd, onUpdate, onDelete }: {
+    students: Student[];
+    achievements: StudentAchievement[];
+    onAdd: (achievement: Omit<StudentAchievement, 'id'>) => void;
+    onUpdate: (achievement: StudentAchievement) => void;
+    onDelete: (achievementId: number) => void;
+}) => {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+    const [currentAchievement, setCurrentAchievement] = useState<Partial<StudentAchievement>>({});
+    const [achievementToDelete, setAchievementToDelete] = useState<number | null>(null);
 
-            setTransfers(prev => prev.filter(t => t.id !== transferId));
-            setStudents(prev => prev.map(s => 
-                s.id === transferToDeleteData.studentId 
-                ? { ...s, status: StudentStatus.New, exitDate: undefined } 
-                : s
-            ));
-             if (!isOnline) {
-                setSyncQueue(prev => [...prev, { type: 'DELETE_TRANSFER', payload: { id: transferId, studentId: transferToDeleteData.studentId }, timestamp: new Date().toISOString() }]);
-            }
-        },
+    const getStudentName = (studentId: number) => students.find(s => s.id === studentId)?.name || 'N/A';
+
+    const openModal = (mode: 'add' | 'edit', achievement: StudentAchievement | null = null) => {
+        setModalMode(mode);
+        setCurrentAchievement(achievement || {
+            date: new Date().toISOString().split('T')[0],
+            level: AchievementLevel.Sekolah,
+        });
+        setIsModalOpen(true);
     };
 
-    const handleSubmitAttendance = (records: Omit<StudentAttendance, 'id'>[]) => {
-        const recordsWithIds = records.map((r, i) => ({ ...r, id: Date.now() + i }));
-        setStudentAttendance(prev => [...prev, ...recordsWithIds]);
-        if (!isOnline) {
-            setSyncQueue(prev => [...prev, { type: 'SUBMIT_ATTENDANCE_BATCH', payload: recordsWithIds, timestamp: new Date().toISOString() }]);
+    const closeModal = () => {
+        setIsModalOpen(false);
+        setCurrentAchievement({});
+    };
+
+    const handleSave = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!currentAchievement.studentId || !currentAchievement.achievementName || !currentAchievement.date || !currentAchievement.level) {
+            alert('Harap lengkapi semua data.');
+            return;
+        }
+        if (modalMode === 'add') {
+            onAdd(currentAchievement as Omit<StudentAchievement, 'id'>);
+        } else {
+            onUpdate(currentAchievement as StudentAchievement);
+        }
+        closeModal();
+    };
+    
+    const handleDelete = () => {
+        if (achievementToDelete !== null) {
+            onDelete(achievementToDelete);
+            setAchievementToDelete(null);
         }
     };
+    
+    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        setCurrentAchievement({ ...currentAchievement, [e.target.name]: e.target.value });
+    };
 
+    const handleSelectStudent = (student: Student | null) => {
+        setCurrentAchievement(prev => ({ ...prev, studentId: student?.id }));
+    };
 
     return (
-        <HashRouter>
-            {isAuthenticated ? (
-                <div className="relative">
-                    <Layout 
-                        onSyncNow={handleSync} 
-                        syncStatus={syncStatus} 
-                        pendingSyncCount={syncQueue.length}
-                        syncProgress={syncProgress}
-                        syncError={syncError}
-                    >
-                        <Routes>
-                            <Route path="/" element={<DashboardPage students={students} teachers={teachers} classes={classes} />} />
-                            <Route path="/identitas-sekolah" element={<SchoolIdentityPage />} />
-                            <Route path="/kalender-pendidikan" element={<CalendarManagementPage events={calendarEvents} onAdd={calendarEventHandlers.add} onUpdate={calendarEventHandlers.update} onDelete={calendarEventHandlers.delete} />} />
-                            <Route path="/guru" element={<TeacherManagementPage teachers={teachers} onAdd={teacherHandlers.add} onUpdate={teacherHandlers.update} onDelete={teacherHandlers.delete} />} />
-                            <Route path="/mapel" element={<SubjectManagementPage subjects={subjects} onAdd={subjectHandlers.add} onUpdate={subjectHandlers.update} onDelete={subjectHandlers.delete} />} />
-                            <Route path="/pengajar-mapel" element={<SubjectTeacherManagementPage assignments={subjectTeachers} onAdd={subjectTeacherHandlers.add} onUpdate={subjectTeacherHandlers.update} onDelete={subjectTeacherHandlers.delete} teachers={teachers} subjects={subjects} classes={classes} />} />
-                            <Route path="/siswa" element={<StudentManagementPage students={students} classes={classes} onAdd={studentHandlers.add} onUpdate={studentHandlers.update} onDelete={studentHandlers.delete} onAddBatch={studentHandlers.addBatch} />} />
-                            <Route path="/kelas" element={<ClassManagementPage classes={classes} teachers={teachers} onAdd={classHandlers.add} onUpdate={classHandlers.update} onDelete={classHandlers.delete} />} />
-                            <Route path="/input-kehadiran" element={<StudentAttendanceInputPage students={students} classes={classes} teachers={teachers} onSubmitAttendance={handleSubmitAttendance} />} />
-                            <Route path="/rekap-kehadiran-siswa" element={<RekapKehadiranSiswaPage students={students} classes={classes} attendanceRecords={studentAttendance} />} />
-                            <Route path="/rekap-kehadiran-guru" element={<RekapKehadiranGuruPage teachers={teachers} subjectTeachers={subjectTeachers} attendanceRecords={teacherAttendance}/>} />
-                            <Route path="/mutasi-siswa" element={<StudentTransferPage students={students} transfers={transfers} onAdd={transferHandlers.add} onUpdate={transferHandlers.update} onDelete={transferHandlers.delete} />} />
-                            <Route path="/manajemen-pengguna" element={<PlaceholderPage title="Manajemen Pengguna"/>} />
-                            <Route path="*" element={<Navigate to="/" />} />
-                        </Routes>
-                    </Layout>
-                    {showSyncedNotification && (
-                        <div className="fixed bottom-5 right-5 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg shadow-lg z-50 animate-fade-in dark:bg-green-900/80 dark:text-green-200 dark:border-green-600" role="alert">
-                            <strong className="font-bold">Sinkronisasi Berhasil!</strong>
-                            <span className="block sm:inline ml-2">Data yang tersimpan offline telah diperbarui.</span>
-                             <button onClick={() => setShowSyncedNotification(false)} className="absolute top-0 bottom-0 right-0 px-4 py-3">
-                                <svg className="fill-current h-6 w-6 text-green-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><title>Close</title><path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/></svg>
-                            </button>
-                        </div>
-                    )}
-                </div>
-            ) : (
-                <Routes>
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="*" element={<Navigate to="/login" />} />
-                </Routes>
-            )}
-        </HashRouter>
-    );
-}
-
-export default App;
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Manajemen Prestasi Siswa</h2>
+                <button onClick={() => openModal('add')} className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-200 flex items-center space-x-2 hover:scale-105">
+                    <Icon>{ICONS.plus}</Icon>
+                    <span>Tambah Prestasi</span>
+                </button>
+            </div>
+            
+            <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-700/50">
+                        <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama Siswa</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama Prestasi</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tingkat</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tanggal</th>
+                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {achievements.map(ach => (
+                            <tr key={ach.id}>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{getStudentName(ach.studentId)}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{ach.achievementName}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{ach.level}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-5
