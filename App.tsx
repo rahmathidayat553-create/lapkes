@@ -113,6 +113,7 @@ const initialTeacherAttendance: TeacherAttendance[] = [
 ];
 
 type SyncStatus = 'idle' | 'pending' | 'syncing' | 'failed';
+type SyncProgress = { current: number; total: number } | null;
 
 // --- ICONS (Heroicons SVG paths) ---
 const ICONS = {
@@ -861,10 +862,18 @@ const Sidebar = () => {
     );
 };
 
-const Header = ({ onSyncNow, syncStatus, pendingSyncCount }: {
+const Header = ({
+    onSyncNow,
+    syncStatus,
+    pendingSyncCount,
+    syncProgress,
+    syncError,
+}: {
     onSyncNow: () => void;
     syncStatus: SyncStatus;
     pendingSyncCount: number;
+    syncProgress: SyncProgress;
+    syncError: string | null;
 }) => {
     const location = useLocation();
     const isOnline = useOnlineStatus();
@@ -873,18 +882,40 @@ const Header = ({ onSyncNow, syncStatus, pendingSyncCount }: {
     const syncInfo = useMemo(() => {
         switch (syncStatus) {
             case 'syncing':
-                return { text: 'Menyinkronkan...', icon: ICONS['arrow-path'], color: 'text-blue-500', spin: true, tooltip: `${pendingSyncCount} item sedang disinkronkan...` };
+                const progressText = syncProgress ? `(${syncProgress.current}/${syncProgress.total})` : '';
+                return {
+                    text: `Menyinkronkan ${progressText}...`,
+                    icon: ICONS['arrow-path'],
+                    color: 'text-blue-500',
+                    spin: true,
+                    tooltip: syncProgress ? `Memproses item ${syncProgress.current} dari ${syncProgress.total}...` : 'Sinkronisasi sedang berlangsung...'
+                };
             case 'pending':
-                 return { text: 'Sinkronisasi Tertunda', icon: ICONS.clock, color: 'text-yellow-500', spin: false, tooltip: `${pendingSyncCount} item menunggu untuk disinkronkan.` };
+                 return {
+                    text: `${pendingSyncCount} Tertunda`,
+                    icon: ICONS.clock,
+                    color: 'text-yellow-500',
+                    spin: false,
+                    tooltip: `${pendingSyncCount} item menunggu untuk disinkronkan saat online.`
+                };
             case 'failed':
-                 return { text: 'Sinkronisasi Gagal', icon: ICONS.warning, color: 'text-red-500', spin: false, tooltip: 'Gagal menyinkronkan data. Coba lagi.' };
+                 return {
+                    text: 'Sinkronisasi Gagal',
+                    icon: ICONS.warning,
+                    color: 'text-red-500',
+                    spin: false,
+                    tooltip: syncError || 'Gagal menyinkronkan data. Coba lagi.'
+                };
             case 'idle':
-                if (pendingSyncCount > 0) { // Should be covered by 'pending' state, but as a fallback
-                    return { text: 'Tertunda', icon: ICONS.clock, color: 'text-yellow-500', spin: false, tooltip: `${pendingSyncCount} item menunggu untuk disinkronkan.` };
-                }
-                return { text: 'Tersinkronisasi', icon: ICONS['check-circle'], color: 'text-green-500', spin: false, tooltip: 'Semua data sudah tersinkronisasi.' };
+                return {
+                    text: 'Tersinkronisasi',
+                    icon: ICONS['check-circle'],
+                    color: 'text-green-500',
+                    spin: false,
+                    tooltip: 'Semua data sudah tersinkronisasi.'
+                };
         }
-    }, [syncStatus, pendingSyncCount]);
+    }, [syncStatus, pendingSyncCount, syncProgress, syncError]);
 
     return (
         <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-6">
@@ -934,14 +965,22 @@ type LayoutProps = React.PropsWithChildren<{
     onSyncNow: () => void;
     syncStatus: SyncStatus;
     pendingSyncCount: number;
+    syncProgress: SyncProgress;
+    syncError: string | null;
 }>;
-function Layout({ children, onSyncNow, syncStatus, pendingSyncCount }: LayoutProps) {
+function Layout({ children, onSyncNow, syncStatus, pendingSyncCount, syncProgress, syncError }: LayoutProps) {
     const location = useLocation();
     return (
         <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
             <Sidebar />
             <div className="flex-1 flex flex-col overflow-hidden">
-                <Header onSyncNow={onSyncNow} syncStatus={syncStatus} pendingSyncCount={pendingSyncCount} />
+                <Header 
+                    onSyncNow={onSyncNow} 
+                    syncStatus={syncStatus} 
+                    pendingSyncCount={pendingSyncCount}
+                    syncProgress={syncProgress}
+                    syncError={syncError}
+                />
                 <main key={location.pathname} className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-gray-900 p-6 animate-fade-in">
                     {children}
                 </main>
@@ -3092,6 +3131,8 @@ const MainApp = () => {
     // Centralized state management with localStorage persistence
     const [syncQueue, setSyncQueue] = usePersistentState<any[]>('syncQueue', []);
     const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
+    const [syncProgress, setSyncProgress] = useState<SyncProgress>(null);
+    const [syncError, setSyncError] = useState<string | null>(null);
     const [showSyncedNotification, setShowSyncedNotification] = useState(false);
     
     const [students, setStudents] = usePersistentState<Student[]>('students', initialStudents);
@@ -3110,26 +3151,33 @@ const MainApp = () => {
         }
 
         setSyncStatus('syncing');
+        setSyncProgress({ current: 0, total: syncQueue.length });
+        setSyncError(null);
         console.log(`Starting sync process for ${syncQueue.length} items...`);
 
         // Simulate processing each item in the queue
-        for (const item of syncQueue) {
-            console.log(`- Syncing item: ${item.type} with payload:`, item.payload);
+        for (let i = 0; i < syncQueue.length; i++) {
+            const item = syncQueue[i];
+            console.log(`- Syncing item ${i + 1}/${syncQueue.length}: ${item.type}`);
             // In a real app, you'd have a switch statement here to call different API endpoints
             await new Promise(resolve => setTimeout(resolve, 100)); // Simulate individual request time
+            setSyncProgress({ current: i + 1, total: syncQueue.length });
         }
         
         // Simulate overall network request
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         // Simulate a possible failure (10% chance)
         if (Math.random() < 0.1) {
+            const errorMessage = 'Simulasi kegagalan jaringan. Silakan coba lagi.';
             setSyncStatus('failed');
-            console.error('Sync process failed. Items remain in queue.');
+            setSyncError(errorMessage);
+            console.error(`Sync process failed: ${errorMessage}`);
         } else {
             console.log('Sync process successful.');
             setSyncQueue([]);
             setSyncStatus('idle');
+            setSyncProgress(null);
             setShowSyncedNotification(true);
             setTimeout(() => setShowSyncedNotification(false), 5000);
         }
@@ -3146,7 +3194,7 @@ const MainApp = () => {
     useEffect(() => {
         if (syncQueue.length > 0 && syncStatus === 'idle') {
             setSyncStatus('pending');
-        } else if (syncQueue.length === 0 && syncStatus !== 'syncing') {
+        } else if (syncQueue.length === 0 && syncStatus !== 'syncing' && syncStatus !== 'failed') {
             setSyncStatus('idle');
         }
     }, [syncQueue.length, syncStatus]);
@@ -3248,7 +3296,13 @@ const MainApp = () => {
         <HashRouter>
             {isAuthenticated ? (
                 <div className="relative">
-                    <Layout onSyncNow={handleSync} syncStatus={syncStatus} pendingSyncCount={syncQueue.length}>
+                    <Layout 
+                        onSyncNow={handleSync} 
+                        syncStatus={syncStatus} 
+                        pendingSyncCount={syncQueue.length}
+                        syncProgress={syncProgress}
+                        syncError={syncError}
+                    >
                         <Routes>
                             <Route path="/" element={<DashboardPage students={students} teachers={teachers} classes={classes} />} />
                             <Route path="/identitas-sekolah" element={<SchoolIdentityPage />} />
